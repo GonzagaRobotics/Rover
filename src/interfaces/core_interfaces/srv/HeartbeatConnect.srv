@@ -1,0 +1,11 @@
+# How often heartbeats are sent by Control System
+uint32 heartbeat_interval
+# How often to check on the status of the heartbeats
+uint32 heartbeat_check_interval
+# How long until a heartbeat is considered timed out
+uint32 heartbeat_timeout
+# When this many heartbeats in a row have timed out, the connection is considered lost
+uint32 heartbeat_timeout_limit
+---
+# The rover has accepted the connection
+bool accepted
