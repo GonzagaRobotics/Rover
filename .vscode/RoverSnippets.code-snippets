@@ -11,7 +11,7 @@
             "\tusing ros_message_type = ${2:ros};\n",
             "\tstatic void convert_to_ros_message(const custom_type &source, ros_message_type &destination)",
             "\t{\n\t}\n",
-            "\tstatic void convert_to_custom_message(const ros_message_type &source, custom_type &destination)",
+            "\tstatic void convert_to_custom(const ros_message_type &source, custom_type &destination)",
             "\t{\n\t}",
             "};\n",
             "RCLCPP_USING_CUSTOM_TYPE_AS_ROS_MESSAGE_TYPE(${1:custom}, ${2:ros});"

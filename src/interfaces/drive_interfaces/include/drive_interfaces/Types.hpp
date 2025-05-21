@@ -25,7 +25,7 @@ struct rclcpp::TypeAdapter<DriveCommand, drive_interfaces::msg::DriveCommand>
         destination.left_right = source.leftRight;
     }
 
-    static void convert_to_custom_message(const ros_message_type &source, custom_type &destination)
+    static void convert_to_custom(const ros_message_type &source, custom_type &destination)
     {
         destination.forwardBackward = source.forward_backward;
         destination.leftRight = source.left_right;

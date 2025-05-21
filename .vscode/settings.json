@@ -9,6 +9,7 @@
     ],
     "files.associations": {
         ".dockerignore": "plaintext",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "functional": "cpp"
     }
 }

@@ -10,7 +10,6 @@ struct Heartbeat
 {
     using SharedPtr = std::shared_ptr<Heartbeat>;
 
-    rclcpp::Time stamp;
     uint32_t id;
 };
 
@@ -23,13 +22,11 @@ struct rclcpp::TypeAdapter<Heartbeat, core_interfaces::msg::Heartbeat>
 
     static void convert_to_ros_message(const custom_type &source, ros_message_type &destination)
     {
-        destination.stamp = source.stamp;
         destination.id = source.id;
     }
 
-    static void convert_to_custom_message(const ros_message_type &source, custom_type &destination)
+    static void convert_to_custom(const ros_message_type &source, custom_type &destination)
     {
-        destination.stamp = source.stamp;
         destination.id = source.id;
     }
 };
