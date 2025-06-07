@@ -30,7 +30,7 @@ class Drive(Node):
         # the correct one.
         return serial.Serial('/dev/ttyS0')
 
-    def drive_callback(self, msg):
+    def drive_callback(self, msg: DriveCommand):
         # Convert from doubles [-1, 1] to integers [0, 200]
         FB = round(msg.forward_backward * 100 + 100)
         LR = round(msg.left_right * 100 + 100)
