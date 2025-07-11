@@ -1,11 +1,11 @@
 #include "core.hpp"
 
-int main(int argc, char **argv)
+int main(int argc, char ** argv)
 {
-    rclcpp::init(argc, argv);
+  rclcpp::init(argc, argv);
 
-    auto core = std::make_shared<Core>();
-    rclcpp::spin(core);
+  auto core = std::make_shared<Core>();
+  rclcpp::spin(core);
 
-    rclcpp::shutdown();
+  rclcpp::shutdown();
 }
