@@ -16,7 +16,7 @@ void Core::onConnect(
   }
 
   response->accepted = true;
-
+  expectedHeartbeatId = 0;
   lastHeartbeatTime = now();
 
   heartbeatInterval = std::chrono::milliseconds(request->heartbeat_interval);

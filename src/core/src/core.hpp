@@ -18,7 +18,7 @@ private:
 
   bool active = false;
   rclcpp::Time lastHeartbeatTime;
-  uint32_t expectedHeartbeatId = 0;
+  uint32_t expectedHeartbeatId;
   uint32_t missedHeartbeats = 0;
 
   rclcpp::Service<HeartbeatConnect>::SharedPtr connectService;
