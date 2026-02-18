@@ -16,7 +16,7 @@ class Drive(Node):
         self.drive_sub = self.create_subscription(
             DriveCommand,
             '/drive/command',
-            self.drive_callback,
+            self.drive_cb,
             10
         )
 
@@ -28,26 +28,18 @@ class Drive(Node):
         # TODO: We are likely going to have multiple potential
         # serial devices active, so we will also need some mechanism to find
         # the correct one.
-        return serial.Serial('/dev/ttyS0')
+        return serial.Serial('/dev/ttyUSB0')
 
-    def drive_callback(self, msg: DriveCommand):
-        # Convert from doubles [-1, 1] to integers [0, 200]
-        FB = round(msg.forward_backward * 100 + 100)
-        LR = round(msg.left_right * 100 + 100)
+    def drive_cb(self, msg: DriveCommand):
+        FB = int(msg.forward_backward * 100 + 100)
+        LR = int(msg.left_right * 100 + 100)
 
-        self.get_logger().info(f"Received command - FB: {FB} LR: {LR}")
-
-        # TODO: Actually test this
-
-        # Format the command and send it
-        command = f"FB:{FB} LR:{LR} EN:1\n"
+        cmdStr = f"FB:{FB} LR:{LR}"
 
         try:
-            self.ser.write(command.encode())
+            print(self.ser.write(cmdStr.encode() + b'\0'))
         except Exception as exc:
             self.get_logger().error(f"Failed to send command: {exc}")
-
-        # TODO: Eventually we will want a response from the microcontroller
 
 
 def main(args=None):
