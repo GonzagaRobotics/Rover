@@ -2,14 +2,14 @@
     "python.autoComplete.extraPaths": [
         "/opt/ros/humble/lib/python3.10/site-packages",
         "/opt/ros/humble/local/lib/python3.10/dist-packages",
-        "${workspaceFolder}/install/nav_interfaces/local/lib/python3.10/dist-packages",
-        "${workspaceFolder}/install/drive_interfaces/local/lib/python3.10/dist-packages"
+        "./install/nav_interfaces/local/lib/python3.10/dist-packages",
+        "./install/drive_interfaces/local/lib/python3.10/dist-packages"
     ],
     "python.analysis.extraPaths": [
         "/opt/ros/humble/lib/python3.10/site-packages",
         "/opt/ros/humble/local/lib/python3.10/dist-packages",
-        "${workspaceFolder}/install/nav_interfaces/local/lib/python3.10/dist-packages",
-        "${workspaceFolder}/install/drive_interfaces/local/lib/python3.10/dist-packages"
+        "./install/nav_interfaces/local/lib/python3.10/dist-packages",
+        "./install/drive_interfaces/local/lib/python3.10/dist-packages"
     ],
     "files.associations": {
         ".dockerignore": "plaintext",

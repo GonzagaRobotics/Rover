@@ -19,5 +19,13 @@ def generate_launch_description():
         Node(
             package='core',
             executable='core',
+        ),
+        Node(
+            package='nav_sensors_antenna',
+            executable='nav_sensors_antenna',
+        ),
+        Node(
+            package='drive',
+            executable='drive',
         )
     ])
