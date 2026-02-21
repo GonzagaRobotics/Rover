@@ -28,16 +28,16 @@ class Drive(Node):
         # TODO: We are likely going to have multiple potential
         # serial devices active, so we will also need some mechanism to find
         # the correct one.
-        return serial.Serial('/dev/ttyUSB0')
+        return serial.Serial('/dev/ttyUSB0', 115200)
 
     def drive_cb(self, msg: DriveCommand):
         FB = int(msg.forward_backward * 100 + 100)
-        LR = int(msg.left_right * 100 + 100)
+        LR = int(-msg.left_right * 100 + 100)
 
-        cmdStr = f"FB:{FB} LR:{LR}"
+        cmdStr = f"FB:{FB} LR:{LR}\n"
 
         try:
-            print(self.ser.write(cmdStr.encode() + b'\0'))
+            print(self.ser.write(cmdStr.encode()))
         except Exception as exc:
             self.get_logger().error(f"Failed to send command: {exc}")
 
@@ -47,8 +47,7 @@ def main(args=None):
 
     node = Drive()
 
-    node.get_logger().info(
-        f"Drive System ready. Using serial port: {node.ser.name}")
+    node.get_logger().info(f"Drive System ready. Using serial port: {node.ser.name}")
 
     try:
         rclpy.spin(node)
