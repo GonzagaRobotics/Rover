@@ -14,15 +14,13 @@ class Drive(Node):
 
         self.ser = self.find_serial()
 
+        self.had_fix = False
+
         self.calib_pub = self.create_publisher(CalibrationSetup, '/nav/calibration', 10)
         self.location_pub = self.create_publisher(Location, '/nav/location', 10)
         self.orient_pub = self.create_publisher(Orientation, '/nav/orient', 10)
 
-        self.create_timer(1.0 / 2, self.timer_cb)
-
-    def __del__(self):
-        if self.ser.is_open:
-            self.ser.close()
+        self.create_timer(1.0 / 10, self.timer_cb)
 
     def find_serial(self) -> serial.Serial:
         # TODO: We are likely going to have multiple potential
@@ -41,22 +39,34 @@ class Drive(Node):
             return
 
         try:
-            data = json.loads(line.decode())
+            data: dict = json.loads(line.decode())
 
-            # TODO: Calibration data
-            # TODO: Are all fields always present? Do we need to handle missing fields?
+            calib = CalibrationSetup()
+            try:
+                calib.gps_fix = data.get('satelites', 0) > 0
+                self.had_fix = calib.gps_fix
+            except KeyError:
+                calib.gps_fix = self.had_fix
 
-            location = Location()
-            location.latitude = data.get('latitude', 0.0)
-            location.longitude = data.get('longitude', 0.0)
+            calib.gyro_calibrated = data.get('gyro', 0) == 3
+            calib.accel_calibrated = data.get('accel', 0) == 3
+            calib.mag_calibrated = data.get('mag', 0) == 3
 
-            # TODO: Confirm the correct mapping of x/y/z to roll/pitch/yaw
+            self.calib_pub.publish(calib)
+
+            # Location data is not guaranteed to be present
+            if 'lat' in data and 'long' in data:
+                location = Location()
+                location.latitude = data.get('lat')
+                location.longitude = data.get('long')
+
+                self.location_pub.publish(location)
+
             orientation = Orientation()
-            orientation.roll = data.get('x', 0.0)
-            orientation.pitch = data.get('y', 0.0)
-            orientation.yaw = data.get('z', 0.0)
+            orientation.roll = float(data.get('z'))
+            orientation.pitch = float(data.get('y'))
+            orientation.yaw = float(data.get('x'))
 
-            self.location_pub.publish(location)
             self.orient_pub.publish(orientation)
         except json.JSONDecodeError as exc:
             self.get_logger().error(f"Failed to decode JSON: {exc}")
@@ -74,3 +84,6 @@ def main(args=None):
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    finally:
+        if node.ser.is_open:
+            node.ser.close()
