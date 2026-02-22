@@ -26,7 +26,7 @@ class Drive(Node):
         # TODO: We are likely going to have multiple potential
         # serial devices active, so we will also need some mechanism to find
         # the correct one.
-        return serial.Serial('/dev/ttyUSB1', baudrate=115200)
+        return serial.Serial('/dev/ttyCH341USB0', baudrate=115200)
 
     def timer_cb(self):
         if not self.ser.is_open:
