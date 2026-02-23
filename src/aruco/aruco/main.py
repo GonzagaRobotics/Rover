@@ -10,7 +10,13 @@ class Aruco(Node):
     def __init__(self):
         super().__init__("aruco")
 
-        self._cap = cv.VideoCapture(2)
+        cam_id = self.declare_parameter("camera_index", -1).value
+        cam_name = self.declare_parameter("camera_name", "").value
+
+        assert cam_id >= 0, "camera_index parameter must be set."
+        assert cam_name != "", "camera_name parameter must be set."
+
+        self._cap = cv.VideoCapture(cam_id)
         self._cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280) 
         self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
         self._last_img = None
@@ -18,8 +24,10 @@ class Aruco(Node):
 
         self._viz_pub = self.create_publisher(MarkerArray, '/aruco/viz', 10)
 
-        self._cam_mtx = np.loadtxt("/home/damon/robotics/aruco/camera_matrix.txt")
-        self._dist_coeffs = np.loadtxt("/home/damon/robotics/aruco/dist_coeffs.txt")
+        calib_dir = get_package_share_directory("aruco") + "/calibrations/"
+
+        self._cam_mtx = np.loadtxt(f"{calib_dir}{cam_name}_camera_matrix.txt")
+        self._dist_coeffs = np.loadtxt(f"{calib_dir}{cam_name}_dist_coeffs.txt")
 
         self.create_timer(1.0 / 30, self.cam_cb)
         self.create_timer(1.0 / 5, self.detect)
@@ -47,12 +55,7 @@ class Aruco(Node):
             half = 0.015 / 2
             object_points = np.array([[-half, -half, 0], [half, -half, 0], [half, half, 0], [-half, half, 0]], dtype=np.float32)
             image_points = corners[i].reshape(-1, 2).astype(np.float32)
-            _, r, t = cv.solvePnP(object_points, image_points, self._cam_mtx, self._dist_coeffs)
-
-            # img = cv.drawFrameAxes(img, self._cam_mtx, self._dist_coeffs, r, t, 0.1)
-
-            # cv.imshow("ar", cv.aruco.drawDetectedMarkers(img, corners, ids))
-            # cv.waitKey(10)
+            _, _, t = cv.solvePnP(object_points, image_points, self._cam_mtx, self._dist_coeffs)
 
             dist = np.linalg.norm(t)
 

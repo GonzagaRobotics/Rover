@@ -27,5 +27,13 @@ def generate_launch_description():
         Node(
             package='drive',
             executable='drive',
-        )
+        ),
+        Node(
+            package='aruco',
+            executable='aruco',
+            parameters=[
+                {"camera_index": 0},
+                {"camera_name": "c270"}
+            ]
+        ),
     ])
