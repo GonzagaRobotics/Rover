@@ -17,6 +17,14 @@ def generate_launch_description():
             )
         ),
         Node(
+            package='pathfinder',
+            executable='pathfinder',
+        ),
+        Node(
+            package='auto_nav',
+            executable='auto_nav',
+        ),
+        Node(
             package='core',
             executable='core',
         ),
