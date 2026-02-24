@@ -12,12 +12,12 @@ class Aruco(Node):
     def __init__(self):
         super().__init__("aruco")
 
-        marker_size = self.declare_parameter("marker_size", 0.015).value
+        marker_size = self.declare_parameter("marker_size", 0.15).value
         cam_id = self.declare_parameter("camera_index", -1).value
-        cam_name = self.declare_parameter("camera_name", "").value
+        self._cam_name = self.declare_parameter("camera_name", "").value
 
         assert cam_id >= 0, "camera_index parameter must be set."
-        assert cam_name != "", "camera_name parameter must be set."
+        assert self._cam_name != "", "camera_name parameter must be set."
 
         half = marker_size / 2
         self._object_points = np.array([
@@ -38,8 +38,8 @@ class Aruco(Node):
 
         calib_dir = get_package_share_directory("aruco") + "/calibrations/"
 
-        self._cam_mtx = np.loadtxt(f"{calib_dir}{cam_name}_camera_matrix.txt")
-        self._dist_coeffs = np.loadtxt(f"{calib_dir}{cam_name}_dist_coeffs.txt")
+        self._cam_mtx = np.loadtxt(f"{calib_dir}{self._cam_name}_camera_matrix.txt")
+        self._dist_coeffs = np.loadtxt(f"{calib_dir}{self._cam_name}_dist_coeffs.txt")
 
         self.create_timer(1.0 / 30, self.cam_cb)
         self.create_timer(1.0 / 5, self.detect)
@@ -60,7 +60,7 @@ class Aruco(Node):
         corners, ids, _ = self._detector.detectMarkers(img)
 
         msg = ArucoMsg()
-        msg.header.frame_id = "map" # TODO: Not actually map frame, but some form of camera frame
+        msg.header.frame_id = self._cam_name
         msg.header.stamp = self.get_clock().now().to_msg()
 
         for i in range(len(corners)): 
@@ -85,7 +85,7 @@ class Aruco(Node):
 
             marker_array = MarkerArray()
             marker = Marker()
-            marker.header.frame_id = "map"
+            marker.header.frame_id = self._cam_name
             marker.header.stamp = self.get_clock().now().to_msg()
             marker.id = int(ids[i][0])
             marker.type = Marker.ARROW
