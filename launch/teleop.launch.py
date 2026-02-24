@@ -17,14 +17,6 @@ def generate_launch_description():
             )
         ),
         Node(
-            package='pathfinder',
-            executable='pathfinder',
-        ),
-        Node(
-            package='auto_nav',
-            executable='auto_nav',
-        ),
-        Node(
             package='core',
             executable='core',
         ),
@@ -35,13 +27,5 @@ def generate_launch_description():
         Node(
             package='drive',
             executable='drive',
-        ),
-        Node(
-            package='aruco',
-            executable='aruco',
-            parameters=[
-                {"camera_index": 0},
-                {"camera_name": "c270"}
-            ]
-        ),
+        )
     ])
