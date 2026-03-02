@@ -63,18 +63,18 @@ class Arm(Node):
         self._i2c.write(0x0, buf)
 
     def _send_stepper(self, cmd: int, target: int):
-        # Byte order: [command, target (4 bytes)]
+        # Byte order: [command, target (2 bytes)]
         buf = bytes(BUFFER_SIZE)
         buf[0] = cmd
-        buf[1:5] = target.to_bytes(4, 'little')
+        buf[1:3] = target.to_bytes(2, 'little')
 
         self._i2c.write(0x0, buf)
 
     def _send_servo(self, cmd: int, angle: int):
-        # Byte order: [command, angle]
+        # Byte order: [command, angle (2 bytes)]
         buf = bytes(BUFFER_SIZE)
         buf[0] = cmd
-        buf[1] = angle
+        buf[1:3] = angle.to_bytes(2, 'little')
 
         self._i2c.write(0x0, buf)
 
@@ -87,3 +87,5 @@ def main(args=None):
         rclpy.spin(arm)
     except KeyboardInterrupt:
         pass
+    finally:
+        arm._i2c.close()
