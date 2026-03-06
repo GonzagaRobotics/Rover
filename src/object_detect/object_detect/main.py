@@ -33,14 +33,13 @@ class ObjectDetect(Node):
         for param in params:
             if param.name == "active":
                 if param.value:
-                    self.get_logger().info("Activating object detection.")
-
                     self._sess = self._load_model()
-                    # Fallback to inactive if model loading failed
-                    self.active = True if self._sess is not None else False
-                else:
-                    self.get_logger().info("Deactivating object detection.")
 
+                    if self._sess is None:
+                        return SetParametersResult(successful=False, reason="Failed to load model.")
+
+                    self.active = True
+                else:
                     self.active = False
                     self._sess = None
             elif param.name == "target_class":
@@ -48,7 +47,9 @@ class ObjectDetect(Node):
                 if param.value in ["mallet", "bottle", "hammer"]:
                     self.target_class = param.value
                 else:
-                    self.get_logger().error(f"Invalid target class: {param.value}")
+                    return SetParametersResult(successful=False, reason="Invalid target class.")
+            elif param.name == "model_name":
+                return SetParametersResult(successful=False, reason="Model name cannot be changed at runtime.")
 
         return SetParametersResult(successful=True)
 
