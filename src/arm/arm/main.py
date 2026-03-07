@@ -3,8 +3,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32, Int32, Bool
 
-TARGET_NAME = '/dev/ttyUSB0'
-BUFFER_SIZE = 8
+TARGET_NAME = '/dev/ttyCH341USB0'
 
 class Arm(Node):
     def __init__(self):
