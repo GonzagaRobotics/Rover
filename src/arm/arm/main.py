@@ -1,17 +1,20 @@
-import smbus
+import serial
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32, Int32, Bool
 
-I2C_BUS_NAME = '/dev/i2c-1'
-I2C_TARGET_ADDRESS = 0x10
+TARGET_NAME = '/dev/ttyUSB0'
 BUFFER_SIZE = 8
 
 class Arm(Node):
     def __init__(self):
         super().__init__('arm')
 
-        self._bus = smbus.SMBus(1)
+        try:
+            self._ser = serial.Serial(TARGET_NAME, baudrate=115200)
+        except serial.SerialException as e:
+            self.get_logger().error(f'Failed to open serial port: {e}')
+            raise
 
         # These subscriptions follow the command order specified by the arm
         self.create_subscription(Float32, 'arm/base', self.base_cb, 10)
@@ -55,18 +58,15 @@ class Arm(Node):
         direction = 1 if val >= 0 else 0
         speed = int(min(abs(val) * 255, 255))
 
-        buf = bytes(BUFFER_SIZE - 1)
-        buf[0] = direction
-        buf[1] = speed
+        buf = bytes([cmd, direction, speed])
 
-        self._bus.write_i2c_block_data(I2C_TARGET_ADDRESS, cmd, buf)
+        self._ser.write(buf)
 
     def _send_stepper_servo(self, cmd: int, target: int):
         # Byte order: [command, target (2 bytes)]
-        buf = bytes(BUFFER_SIZE - 1)
-        buf[0:2] = target.to_bytes(2, 'little')
+        buf = bytes([cmd]) + target.to_bytes(2, byteorder='little')
 
-        self._bus.write_i2c_block_data(I2C_TARGET_ADDRESS, cmd, buf)
+        self._ser.write(buf)
 
 
 def main(args=None):
@@ -78,4 +78,4 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        arm._bus.close()
+        arm._ser.close()
