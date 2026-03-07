@@ -23,7 +23,7 @@ class ObjectDetect(Node):
 
         self.add_on_set_parameters_callback(self.param_cb)
 
-        self.create_subscription(Image, "/vision/image/clean", self.img_cb, 1)
+        self.create_subscription(Image, "/vision/main/image_rect_color", self.img_cb, 1)
 
         self.create_timer(1.0 / DETECT_FREQ, self.detect_cb)
 
@@ -42,16 +42,17 @@ class ObjectDetect(Node):
                 else:
                     self.active = False
                     self._sess = None
+
+                return SetParametersResult(successful=True)
             elif param.name == "target_class":
                 # Only valid classes are "mallet", "bottle", and "hammer"
                 if param.value in ["mallet", "bottle", "hammer"]:
                     self.target_class = param.value
+                    return SetParametersResult(successful=True)
                 else:
                     return SetParametersResult(successful=False, reason="Invalid target class.")
             elif param.name == "model_name":
                 return SetParametersResult(successful=False, reason="Model name cannot be changed at runtime.")
-
-        return SetParametersResult(successful=True)
 
     def img_cb(self, msg: Image):
         if not self.active or self._sess is None:
@@ -73,6 +74,8 @@ class ObjectDetect(Node):
         res = self._sess.run(None, {input_name: self._img.astype(np.float16)})
         print(res)
 
+        self._img = None
+
     def _load_model(self):
         models_dir = get_package_share_directory('object_detect') + f"/models/"
         model_path = models_dir + self._model_name + ".onnx"
@@ -82,7 +85,10 @@ class ObjectDetect(Node):
             return None
 
         try:
-            sess = ort.InferenceSession(model_path, providers=['CUDAExecutionProvider'])
+            if "CUDAExecutionProvider" not in ort.get_available_providers():
+                self.get_logger().warning("CUDAExecutionProvider not available.")
+
+            sess = ort.InferenceSession(model_path, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 
             return sess
         except Exception as e:
