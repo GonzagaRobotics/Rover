@@ -1,14 +1,11 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>aruco</name>
-  <version>0.3.0</version>
-  <description>Detects and calculates poses for aruco tags.</description>
+  <name>object_detect</name>
+  <version>0.1.0</version>
+  <description>YOLO Object Detection and pose estimation.</description>
   <maintainer email="57426668+BruhSoundEffectNumber2@users.noreply.github.com">damon</maintainer>
   <license>MIT</license>
-
-  <depend>rclpy</depend>
-  <depend>nav_interfaces</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

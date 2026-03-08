@@ -1,69 +1,72 @@
 import numpy as np
 import cv2 as cv
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python import get_package_share_directory
 import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import RegionOfInterest
+from rclpy.node import Node, Parameter, SetParametersResult
+from sensor_msgs.msg import Image, RegionOfInterest, CameraInfo
 from geometry_msgs.msg import Point, Vector3
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_interfaces.msg import Aruco as ArucoMsg
+
 
 class Aruco(Node):
     def __init__(self):
         super().__init__("aruco")
 
-        marker_size = self.declare_parameter("marker_size", 0.15).value
-        cam_id = self.declare_parameter("camera_index", -1).value
-        self._cam_name = self.declare_parameter("camera_name", "").value
+        self._ready = False
 
-        assert cam_id >= 0, "camera_index parameter must be set."
-        assert self._cam_name != "", "camera_name parameter must be set."
+        self.marker_size = self.declare_parameter("marker_size", 0.15).value
 
-        half = marker_size / 2
-        self._object_points = np.array([
-                [-half, -half, 0], 
-                [half, -half, 0], 
-                [half, half, 0], 
-                [-half, half, 0]],
-                dtype=np.float32)
+        self._setup_marker_points()
 
-        self._cap = cv.VideoCapture(cam_id)
-        self._cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280) 
-        self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
         self._last_img = None
         self._detector = self._make_detector()
 
         self._viz_pub = self.create_publisher(MarkerArray, '/aruco/viz', 10)
         self._aruco_pub = self.create_publisher(ArucoMsg, "/aruco/detect", 10)
 
-        calib_dir = get_package_share_directory("aruco") + "/calibrations/"
+        self.create_subscription(Image, "/vision/main/image_rect_color", self.cam_cb, 1)
+        self.create_subscription(CameraInfo, "/vision/main/camera_info", self.cam_cb, 1)
 
-        self._cam_mtx = np.loadtxt(f"{calib_dir}{self._cam_name}_camera_matrix.txt")
-        self._dist_coeffs = np.loadtxt(f"{calib_dir}{self._cam_name}_dist_coeffs.txt")
+        self.add_on_set_parameters_callback(self.param_cb)
 
-        self.create_timer(1.0 / 30, self.cam_cb)
         self.create_timer(1.0 / 5, self.detect)
 
-        self.get_logger().info("Ready")
+    def param_cb(self, params: list[Parameter]):
+        for param in params:
+            if param.name == "marker_size":
+                if param.value <= 0:
+                    return SetParametersResult(successful=False, reason="Marker size must be > 0.")
 
-    def cam_cb(self):
-        ret = self._cap.grab()
+                self.marker_size = param.value
+                self._setup_marker_points()
+                return SetParametersResult(successful=True)
 
-        if not ret:
-            raise RuntimeError("Failed to read from camera.")
+    def cam_cb(self, msg: Image | CameraInfo):
+        if isinstance(msg, CameraInfo):
+            self._cam_mtx = np.array(msg.k).reshape(3, 3)
+            self._dist_coeffs = np.array(msg.d)
+
+            if not self._ready and self._last_img is not None:
+                self._ready = True
+                self.get_logger().info("Ready")
+        else:
+            self._last_img = msg
 
     def detect(self):
-        _, frame = self._cap.retrieve()
+        if self._ready and self._last_img is None:
+            return
 
-        img = self._undistort_image(frame.copy())
-    
+        img = np.frombuffer(self._last_img.data, dtype=np.uint8).reshape(
+            self._last_img.height, self._last_img.width, -1)
+
         corners, ids, _ = self._detector.detectMarkers(img)
 
         msg = ArucoMsg()
-        msg.header.frame_id = self._cam_name
+        msg.header.frame_id = "map"
         msg.header.stamp = self.get_clock().now().to_msg()
 
-        for i in range(len(corners)): 
+        for i in range(len(corners)):
             # Reject markers that are not in the range of expected IDs (0-3)
             if ids[i][0] > 3:
                 continue
@@ -77,15 +80,13 @@ class Aruco(Node):
             roi.width = int(image_points[:, 0].max() - image_points[:, 0].min())
             roi.height = int(image_points[:, 1].max() - image_points[:, 1].min())
 
-            # TODO: Fully verify the coordinate transformation and sign conventions here
-
             msg.ids.append(ids[i][0])
             msg.translations.append(Vector3(x=t[2][0], y=-t[0][0], z=-t[1][0]))
             msg.rois.append(roi)
 
             marker_array = MarkerArray()
             marker = Marker()
-            marker.header.frame_id = self._cam_name
+            marker.header.frame_id = "map"
             marker.header.stamp = self.get_clock().now().to_msg()
             marker.id = int(ids[i][0])
             marker.type = Marker.ARROW
@@ -98,20 +99,10 @@ class Aruco(Node):
             marker.color.r = 1.0
             marker_array.markers.append(marker)
             self._viz_pub.publish(marker_array)
-        
+
         self._aruco_pub.publish(msg)
 
-    def _undistort_image(self, img: cv.Mat) -> cv.Mat:
-        h,  w = img.shape[:2]
-        newcameramtx, roi = cv.getOptimalNewCameraMatrix(self._cam_mtx, self._dist_coeffs, (w, h), 1, (w, h))
-
-        dst = cv.undistort(img, self._cam_mtx, self._dist_coeffs, None, newcameramtx)
-
-        # crop the image
-        x, y, w, h = roi
-        dst = dst[y:y+h, x:x+w]
-
-        return dst
+        self._last_img = None
 
     def _make_detector(self) -> cv.aruco.ArucoDetector:
         parameters = cv.aruco.DetectorParameters()
@@ -120,6 +111,16 @@ class Aruco(Node):
         aruco_dict = cv.aruco.getPredefinedDictionary(cv.aruco.DICT_4X4_50)
 
         return cv.aruco.ArucoDetector(aruco_dict, parameters)
+
+    def _setup_marker_points(self):
+        half = self.marker_size / 2
+
+        self._object_points = np.array([
+            [-half, -half, 0],
+            [half, -half, 0],
+            [half, half, 0],
+            [-half, half, 0]],
+            dtype=np.float32)
 
 
 def main(args=None):
@@ -131,5 +132,3 @@ def main(args=None):
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    finally:
-        node._cap.release()

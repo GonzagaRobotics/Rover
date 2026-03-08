@@ -1,0 +1,123 @@
+import numpy as np
+import cv2 as cv
+from ament_index_python.packages import get_package_share_directory
+import rclpy
+from rclpy.node import Node, SetParametersResult
+from rclpy.parameter import Parameter
+from sensor_msgs.msg import Image, CameraInfo
+
+CAP_FPS = 30
+SEND_FPS = 15
+
+
+class Vision(Node):
+    def __init__(self):
+        super().__init__("vision")
+
+        self._frame = None
+        self._frame_stamp = None
+
+        cam_id = self.declare_parameter("camera_index", -1).value
+        self._cam_name = self.declare_parameter("camera_name", "").value
+
+        assert cam_id >= 0, "camera_index parameter must be set."
+        assert self._cam_name != "", "camera_name parameter must be set."
+
+        self.add_on_set_parameters_callback(self.set_params_cb)
+
+        self._cap = cv.VideoCapture(cam_id)
+        self._cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
+        self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
+        self._cap.set(cv.CAP_PROP_FPS, CAP_FPS)
+
+        calib_dir = get_package_share_directory("vision") + "/calibrations/"
+
+        self._cam_mtx = np.loadtxt(f"{calib_dir}{self._cam_name}_camera_matrix.txt")
+        self._dist_coeffs = np.loadtxt(f"{calib_dir}{self._cam_name}_dist_coeffs.txt")
+
+        self._clean_pub = self.create_publisher(Image, "/vision/main/image_rect_color", 10)
+        self._cam_info_pub = self.create_publisher(CameraInfo, "/vision/main/camera_info", 10)
+
+        self.create_timer(1.0 / CAP_FPS, self.cam_cb)
+        self.create_timer(1.0 / SEND_FPS, self.send_cb)
+
+        self.get_logger().info("Ready")
+
+    def set_params_cb(self, params: list[Parameter]):
+        for param in params:
+            if param.name == "camera_index":
+                return SetParametersResult(successful=False, reason="Camera index cannot be changed at runtime.")
+            elif param.name == "camera_name":
+                return SetParametersResult(successful=False, reason="Camera name cannot be changed at runtime.")
+
+    def cam_cb(self):
+        if not self._cap.isOpened():
+            raise RuntimeError("Camera is not opened.")
+
+        ret, frame = self._cap.read()
+
+        if not ret:
+            self.get_logger().error("Failed to read from camera.")
+            return
+
+        self._frame = frame
+        self._frame_stamp = self.get_clock().now().to_msg()
+
+    def send_cb(self):
+        if self._frame is None:
+            return
+
+        self._publish_camera_info()
+
+        img = self._undistort_image(self._frame)
+        msg = Image()
+        msg.header.stamp = self._frame_stamp
+        msg.header.frame_id = "camera"
+        msg.height = img.shape[0]
+        msg.width = img.shape[1]
+        msg.encoding = "bgr8"
+        msg.data.frombytes(np.ascontiguousarray(img).data)
+
+        self._clean_pub.publish(msg)
+
+        self._frame = None
+
+    def _undistort_image(self, img: cv.Mat) -> cv.Mat:
+        h,  w = img.shape[:2]
+        newcameramtx, roi = cv.getOptimalNewCameraMatrix(self._cam_mtx, self._dist_coeffs, (w, h), 1, (w, h))
+
+        dst = cv.undistort(img, self._cam_mtx, self._dist_coeffs, None, newcameramtx)
+
+        # crop the image
+        x, y, w, h = roi
+        dst = dst[y:y+h, x:x+w]
+
+        return dst
+
+    def _publish_camera_info(self):
+        msg = CameraInfo()
+        msg.header.stamp = self._frame_stamp
+        msg.header.frame_id = "camera"
+        msg.width = self._frame.shape[1]
+        msg.height = self._frame.shape[0]
+        msg.distortion_model = "plumb_bob"
+        msg.d = self._dist_coeffs.flatten().tolist()
+        msg.k = self._cam_mtx.flatten().tolist()
+        msg.p = [float(self._cam_mtx[0, 0]), 0.0, float(self._cam_mtx[0, 2]), 0.0,
+                 0.0, float(self._cam_mtx[1, 1]), float(self._cam_mtx[1, 2]), 0.0,
+                 0.0, 0.0, 1.0, 0.0]
+
+        self._cam_info_pub.publish(msg)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    node = Vision()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node._cap.release()
