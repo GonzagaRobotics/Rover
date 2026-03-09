@@ -35,13 +35,12 @@ class Vision(Node):
         self._cam_mtx = np.loadtxt(f"{calib_dir}{self._cam_name}_camera_matrix.txt")
         self._dist_coeffs = np.loadtxt(f"{calib_dir}{self._cam_name}_dist_coeffs.txt")
 
-        self._clean_pub = self.create_publisher(Image, "/vision/main/image_rect_color", 10)
+        self._raw_pub = self.create_publisher(Image, "/vision/main/image_raw", 10)
+        self._rect_pub = self.create_publisher(Image, "/vision/main/image_rect_color", 10)
         self._cam_info_pub = self.create_publisher(CameraInfo, "/vision/main/camera_info", 10)
 
         self.create_timer(1.0 / CAP_FPS, self.cam_cb)
         self.create_timer(1.0 / SEND_FPS, self.send_cb)
-
-        self.get_logger().info("Ready")
 
     def set_params_cb(self, params: list[Parameter]):
         for param in params:
@@ -69,6 +68,15 @@ class Vision(Node):
 
         self._publish_camera_info()
 
+        msg = Image()
+        msg.header.stamp = self._frame_stamp
+        msg.header.frame_id = "camera"
+        msg.height = self._frame.shape[0]
+        msg.width = self._frame.shape[1]
+        msg.encoding = "bgr8"
+        msg.data.frombytes(self._frame.data)
+        self._raw_pub.publish(msg)
+
         img = self._undistort_image(self._frame)
         msg = Image()
         msg.header.stamp = self._frame_stamp
@@ -76,9 +84,10 @@ class Vision(Node):
         msg.height = img.shape[0]
         msg.width = img.shape[1]
         msg.encoding = "bgr8"
+        # Since a ROI is used, the undistorted image is not contiguous in memory
         msg.data.frombytes(np.ascontiguousarray(img).data)
 
-        self._clean_pub.publish(msg)
+        self._rect_pub.publish(msg)
 
         self._frame = None
 
