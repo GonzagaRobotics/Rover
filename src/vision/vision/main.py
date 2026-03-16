@@ -21,7 +21,6 @@ class Vision(Node):
         self._cam_name = self.declare_parameter("camera_name", "").value
 
         assert cam_id >= 0, "camera_index parameter must be set."
-        assert self._cam_name != "", "camera_name parameter must be set."
 
         self.add_on_set_parameters_callback(self.set_params_cb)
 
@@ -30,14 +29,16 @@ class Vision(Node):
         self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
         self._cap.set(cv.CAP_PROP_FPS, CAP_FPS)
 
-        calib_dir = get_package_share_directory("vision") + "/calibrations/"
-
-        self._cam_mtx = np.loadtxt(f"{calib_dir}{self._cam_name}_camera_matrix.txt")
-        self._dist_coeffs = np.loadtxt(f"{calib_dir}{self._cam_name}_dist_coeffs.txt")
-
         self._raw_pub = self.create_publisher(Image, "/vision/main/image_raw", 10)
-        self._rect_pub = self.create_publisher(Image, "/vision/main/image_rect_color", 10)
-        self._cam_info_pub = self.create_publisher(CameraInfo, "/vision/main/camera_info", 10)
+
+        if (self._cam_name != ""):
+            calib_dir = get_package_share_directory("vision") + "/calibrations/"
+
+            self._cam_mtx = np.loadtxt(f"{calib_dir}{self._cam_name}_camera_matrix.txt")
+            self._dist_coeffs = np.loadtxt(f"{calib_dir}{self._cam_name}_dist_coeffs.txt")
+
+            self._rect_pub = self.create_publisher(Image, "/vision/main/image_rect_color", 10)
+            self._cam_info_pub = self.create_publisher(CameraInfo, "/vision/main/camera_info", 10)
 
         self.create_timer(1.0 / CAP_FPS, self.cam_cb)
         self.create_timer(1.0 / SEND_FPS, self.send_cb)
@@ -66,8 +67,6 @@ class Vision(Node):
         if self._frame is None:
             return
 
-        self._publish_camera_info()
-
         msg = Image()
         msg.header.stamp = self._frame_stamp
         msg.header.frame_id = "camera"
@@ -76,6 +75,12 @@ class Vision(Node):
         msg.encoding = "bgr8"
         msg.data.frombytes(self._frame.data)
         self._raw_pub.publish(msg)
+
+        if self._cam_name == "":
+            self._frame = None
+            return
+        
+        self._publish_camera_info()
 
         img = self._undistort_image(self._frame)
         msg = Image()
