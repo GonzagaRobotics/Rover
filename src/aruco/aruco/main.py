@@ -54,7 +54,7 @@ class Aruco(Node):
             self._last_img = msg
 
     def detect(self):
-        if self._ready and self._last_img is None:
+        if not self._ready or self._last_img is None:
             return
 
         img = np.frombuffer(self._last_img.data, dtype=np.uint8).reshape(
