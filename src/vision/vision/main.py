@@ -25,6 +25,7 @@ class Vision(Node):
         self.add_on_set_parameters_callback(self.set_params_cb)
 
         self._cap = cv.VideoCapture(cam_id)
+        self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*'MJPG'))
         self._cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
         self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
         self._cap.set(cv.CAP_PROP_FPS, CAP_FPS)
