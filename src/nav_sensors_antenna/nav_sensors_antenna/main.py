@@ -14,8 +14,8 @@ class Drive(Node):
     def __init__(self):
         super().__init__('nav_sensors_antenna')
 
-        base_lat = self.declare_parameter('base_lat').value
-        base_lon = self.declare_parameter('base_lon').value
+        base_lat = self.declare_parameter('base_lat', -100.0).value
+        base_lon = self.declare_parameter('base_lon', 200.0).value
 
         assert isinstance(base_lat, float) and isinstance(base_lon, float), "Base latitude and longitude must be floats"
         assert -90.0 <= base_lat <= 90.0, "Base latitude must be between -90 and 90 degrees"
