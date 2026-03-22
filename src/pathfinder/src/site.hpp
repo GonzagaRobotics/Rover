@@ -4,7 +4,7 @@
 #include <memory>
 #include <utility>
 
-#include "auto_nav_interfaces/Types.hpp"
+#include "auto_msgs/Types.hpp"
 
 /**
  * A site represents an area of land that we want to find a path through.

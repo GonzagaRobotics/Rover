@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "auto_nav_interfaces/Types.hpp"
+#include "auto_msgs/Types.hpp"
 
 /**
  * Writes a KML file containing the given plan.

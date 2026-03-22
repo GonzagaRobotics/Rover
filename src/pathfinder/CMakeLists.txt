@@ -8,10 +8,9 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(nav_interfaces REQUIRED)
-find_package(auto_nav_interfaces REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(auto_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -26,8 +25,7 @@ if(BUILD_TESTING)
 endif()
 
 include_directories(
-  ${nav_interfaces_INCLUDE_DIRS}
-  ${auto_nav_interfaces_INCLUDE_DIRS}
+  ${auto_msgs_INCLUDE_DIRS}
 )
 
 add_executable(pathfinder
@@ -42,7 +40,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   target_compile_definitions(pathfinder PRIVATE DEBUG)
 endif()
 
-ament_target_dependencies(pathfinder rclcpp rclcpp_action std_msgs nav_interfaces auto_nav_interfaces)
+ament_target_dependencies(pathfinder rclcpp std_msgs sensor_msgs auto_msgs)
 
 install(TARGETS pathfinder DESTINATION lib/${PROJECT_NAME})
 

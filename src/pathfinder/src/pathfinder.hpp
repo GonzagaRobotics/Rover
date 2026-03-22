@@ -10,14 +10,16 @@
 #include <vector>
 
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_action/rclcpp_action.hpp"
 #include "search.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "site.hpp"
 #include "site_loader.hpp"
 
 // #ifdef DEBUG
 #include "debug/debug_kml.hpp"
 // #endif
+
+using FixMsg = sensor_msgs::msg::NavSatFix;
 
 /**
  * Finds paths through a site.
@@ -28,29 +30,26 @@ private:
   /** The site we are currently on. */
   std::shared_ptr<Site> site;
 
+  Location current_location;
+
   /** Are we currently pathfinding? */
   std::atomic<bool> pathfinding;
 
   /** The future for the pathfinder's search. */
   std::future<std::pair<std::vector<Location>, std::string>> pathfinderFuture;
 
-  /** The current goal handle for making a plan. */
-  std::shared_ptr<MakePlanSGH> currentGoalHandle;
-
-  /** The action server for making plans. */
-  rclcpp_action::Server<MakePlan>::SharedPtr makePlanServer;
-
   /** The timer that checks if pathfinding is complete. */
   rclcpp::TimerBase::SharedPtr pathfinderCheckTimer;
 
+  rclcpp::Subscription<FixMsg>::SharedPtr fix_sub;
+  rclcpp::Subscription<Target>::SharedPtr target_sub;
+
+  rclcpp::Publisher<Plan>::SharedPtr plan_pub;
+
   void onPathfinderCheck();
 
-  rclcpp_action::GoalResponse onMakePlanGoal(
-    const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const MakePlan::Goal> goal);
-
-  rclcpp_action::CancelResponse onMakePlanCancel(const std::shared_ptr<MakePlanSGH> goalHandle);
-
-  void onMakePlanExecute(const std::shared_ptr<MakePlanSGH> goalHandle);
+  void fix_cb(const FixMsg::SharedPtr msg);
+  void target_cb(const Target::SharedPtr msg);
 
 public:
   Pathfinder();

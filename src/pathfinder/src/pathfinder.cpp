@@ -6,91 +6,57 @@ void Pathfinder::onPathfinderCheck()
     return;
   }
 
-  if (pathfinderFuture.wait_for(std::chrono::milliseconds(10)) == std::future_status::ready) {
-    auto result = pathfinderFuture.get();
-
-    auto resultMsg = std::make_shared<MakePlan::Result>();
-    for (auto & waypoint : result.first) {
-      auto geoLocMsg = nav_interfaces::msg::Location();
-      geoLocMsg.latitude = waypoint.latitude;
-      geoLocMsg.longitude = waypoint.longitude;
-
-      resultMsg->plan.waypoints.push_back(geoLocMsg);
-    }
-
-    if (result.second.empty()) {
-      RCLCPP_INFO(this->get_logger(), "Pathfinding complete");
-
-      // #ifdef DEBUG
-      auto static_dir = this->get_parameter("static_dir").as_string();
-
-      Location currentLocation;
-      currentLocation.latitude = currentGoalHandle->get_goal()->current_location.latitude;
-      currentLocation.longitude = currentGoalHandle->get_goal()->current_location.longitude;
-
-      debugKML(static_dir, currentLocation, Plan{result.first});
-      // #endif
-
-      currentGoalHandle->succeed(resultMsg);
-    } else {
-      RCLCPP_ERROR(this->get_logger(), "Pathfinding failed: %s", result.second.c_str());
-
-      currentGoalHandle->abort(resultMsg);
-    }
-
-    pathfinding = false;
+  if (pathfinderFuture.wait_for(std::chrono::milliseconds(10)) != std::future_status::ready) {
+    return;
   }
+
+  auto result = pathfinderFuture.get();
+
+  if (result.second.empty() == false) {
+    RCLCPP_ERROR(this->get_logger(), "Pathfinding failed: %s", result.second.c_str());
+    pathfinding = false;
+    return;
+  }
+
+  RCLCPP_INFO(this->get_logger(), "Pathfinding complete");
+
+  Plan plan;
+  plan.waypoints = result.first;
+
+  plan_pub->publish(plan);
+
+  // #ifdef DEBUG
+  auto static_dir = this->get_parameter("static_dir").as_string();
+
+  debugKML(static_dir, current_location, Plan{result.first});
+  // #endif
+
+  pathfinding = false;
 }
 
-rclcpp_action::GoalResponse Pathfinder::onMakePlanGoal(
-  const rclcpp_action::GoalUUID &, std::shared_ptr<const MakePlan::Goal>)
+void Pathfinder::fix_cb(const FixMsg::SharedPtr msg)
 {
-  RCLCPP_INFO(this->get_logger(), "Received a new goal");
+  current_location.latitude = msg->latitude;
+  current_location.longitude = msg->longitude;
+}
+
+void Pathfinder::target_cb(const Target::SharedPtr msg)
+{
+  RCLCPP_INFO(this->get_logger(), "Received new target: %s", msg->to_string().c_str());
 
   if (pathfinding) {
-    RCLCPP_WARN(this->get_logger(), "Canceling current pathfinding to start a new one");
+    RCLCPP_WARN(this->get_logger(), "Canceling current pathfinding to start the new one");
 
     pathfinding = false;
     pathfinderFuture.wait();
   }
 
-  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-}
-
-rclcpp_action::CancelResponse Pathfinder::onMakePlanCancel(const std::shared_ptr<MakePlanSGH>)
-{
-  RCLCPP_INFO(this->get_logger(), "Goal canceled");
-
-  pathfinding = false;
-  pathfinderFuture.wait();
-
-  return rclcpp_action::CancelResponse::ACCEPT;
-}
-
-void Pathfinder::onMakePlanExecute(const std::shared_ptr<MakePlanSGH> goalHandle)
-{
-  auto goalMsg = goalHandle->get_goal();
-
-  Location currentLocation;
-  currentLocation.latitude = goalMsg->current_location.latitude;
-  currentLocation.longitude = goalMsg->current_location.longitude;
-
-  Target target;
-  target.type = static_cast<TargetType>(goalMsg->target.type);
-  target.location.latitude = goalMsg->target.location.latitude;
-  target.location.longitude = goalMsg->target.location.longitude;
-
-  RCLCPP_INFO(
-    this->get_logger(), "Executing goal from %s to %s", currentLocation.to_string().c_str(),
-    target.to_string().c_str());
-
-  currentGoalHandle = goalHandle;
   pathfinding = true;
 
-  pathfinderFuture = std::async(std::launch::async, [this, currentLocation, target]() {
+  pathfinderFuture = std::async(std::launch::async, [this, msg]() {
     Search search(this->site);
 
-    return search.findPath(currentLocation, target.location, pathfinding);
+    return search.findPath(current_location, msg->location, pathfinding);
   });
 }
 
@@ -115,10 +81,10 @@ Pathfinder::Pathfinder() : Node("pathfinder")
   pathfinderCheckTimer = this->create_wall_timer(
     std::chrono::milliseconds(500), std::bind(&Pathfinder::onPathfinderCheck, this));
 
-  this->makePlanServer = rclcpp_action::create_server<MakePlan>(
-    this, "/make_plan", std::bind(&Pathfinder::onMakePlanGoal, this, _1, _2),
-    std::bind(&Pathfinder::onMakePlanCancel, this, _1),
-    std::bind(&Pathfinder::onMakePlanExecute, this, _1));
+  plan_pub = this->create_publisher<Plan>("pathfinder/plan", 10);
+  fix_sub = this->create_subscription<FixMsg>("fix", 10, std::bind(&Pathfinder::fix_cb, this, _1));
+  target_sub = this->create_subscription<Target>(
+    "pathfinder/target", 10, std::bind(&Pathfinder::target_cb, this, _1));
 
   RCLCPP_INFO(this->get_logger(), "Pathfinder ready");
 }

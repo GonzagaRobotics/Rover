@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "auto_nav_interfaces/Types.hpp"
+#include "auto_msgs/Types.hpp"
 #include "search_node.hpp"
 #include "site.hpp"
 
