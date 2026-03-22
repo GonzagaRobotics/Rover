@@ -1,0 +1,33 @@
+cmake_minimum_required(VERSION 3.8)
+project(auto_msgs)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Location.msg"
+  "msg/Plan.msg"
+  "msg/State.msg"
+  "msg/Target.msg"
+  "msg/Aruco.msg"
+  "srv/GetState.srv"
+  "srv/Instruct.srv"
+  "srv/SetTarget.srv"
+  DEPENDENCIES std_msgs sensor_msgs
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+ament_export_include_directories(include)
+
+ament_package()

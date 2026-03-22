@@ -1,4 +1,7 @@
 ---
 # See State.msg for details
 uint8 state
+bool has_target
+Target target
+bool has_plan
 Plan plan

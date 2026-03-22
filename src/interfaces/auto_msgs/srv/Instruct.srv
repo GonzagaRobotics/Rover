@@ -3,3 +3,7 @@
 # 2: EXECUTE - Begin executing the current plan
 # 3: TERMINATE - Stop the current plan and return to the READY state
 uint8 instruction
+---
+bool ok
+# Empty if ok is true
+string reason
