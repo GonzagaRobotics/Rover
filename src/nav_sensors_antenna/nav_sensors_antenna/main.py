@@ -37,7 +37,7 @@ class Drive(Node):
             return
 
         try:
-            data: dict = json.loads(line.decode())
+            data: dict = json.loads(line.decode(), parse_int=float)
         except json.JSONDecodeError as exc:
             self.get_logger().warn(f"Failed to decode JSON: {exc.msg} | Raw: {exc.doc}")
 
@@ -77,7 +77,7 @@ class Drive(Node):
         msg.header.frame_id = "gps_link"
         msg.header.stamp = self.get_clock().now().to_msg()
 
-        satelites = data.get('satelites', -1)
+        satelites = data.get('satellites', -1)
         msg.status.status = NavSatStatus.STATUS_FIX if satelites > 0 else NavSatStatus.STATUS_NO_FIX
         msg.status.service = NavSatStatus.SERVICE_GPS
 
