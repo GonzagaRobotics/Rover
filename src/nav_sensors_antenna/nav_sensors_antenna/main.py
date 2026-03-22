@@ -1,7 +1,8 @@
 import json
+import struct
 import rclpy
 import serial
-from rclpy.node import Node, Subscription
+from rclpy.node import Node, Subscription, SetParametersResult
 from rclpy.parameter import Parameter
 from sensor_msgs.msg import Imu, NavSatFix, NavSatStatus
 
@@ -13,15 +14,32 @@ class Drive(Node):
     def __init__(self):
         super().__init__('nav_sensors_antenna')
 
+        base_lat = self.declare_parameter('base_lat').value
+        base_lon = self.declare_parameter('base_lon').value
+
+        assert isinstance(base_lat, float) and isinstance(base_lon, float), "Base latitude and longitude must be floats"
+        assert -90.0 <= base_lat <= 90.0, "Base latitude must be between -90 and 90 degrees"
+        assert -180.0 <= base_lon <= 180.0, "Base longitude must be between -180 and 180 degrees"
+
         ser_name = self.declare_parameter('serial_name', 'ttyCH341USB0').value
         assert ser_name != "", "Serial port name cannot be empty"
+
+        self.add_on_set_parameters_callback(self.param_set_cb)
 
         self.ser = self.find_serial(ser_name)
 
         self.fix_pub = self.create_publisher(NavSatFix, 'fix', 10)
         self.imu_pub = self.create_publisher(Imu, 'imu', 10)
 
+        # Write 4 bytes for lat, 4 for lon of the base station
+        self.ser.write(struct.pack('ff', base_lat, base_lon))
+
         self.create_timer(1.0 / 10, self.timer_cb)
+
+    def param_set_cb(self, params: list[Parameter]):
+        for param in params:
+            if param.name == 'serial_name' or param.name == 'base_lat' or param.name == 'base_lon':
+                return SetParametersResult(successful=False, reason=f"Parameter '{param.name}' cannot be changed at runtime.")
 
     def find_serial(self, name: str) -> serial.Serial:
         return serial.Serial(f'/dev/{name}', baudrate=115200)
