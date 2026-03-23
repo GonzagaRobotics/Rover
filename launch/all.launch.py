@@ -19,6 +19,9 @@ def generate_launch_description():
         Node(
             package='pathfinder',
             executable='pathfinder',
+            parameters=[
+                {"site_name": "urc"},
+            ]
         ),
         Node(
             package='auto_nav',

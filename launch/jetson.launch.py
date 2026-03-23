@@ -20,7 +20,6 @@ def generate_launch_description():
             package='pathfinder',
             executable='pathfinder',
             parameters=[
-                {'static_dir': '/home/robotics/static'},
                 {'site_name': 'urc'}
             ]
         ),

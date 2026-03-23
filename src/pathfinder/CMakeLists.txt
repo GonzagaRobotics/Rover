@@ -40,6 +40,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   target_compile_definitions(pathfinder PRIVATE DEBUG)
 endif()
 
+install(
+  DIRECTORY sites/
+  DESTINATION share/${PROJECT_NAME}/sites
+)
+
 ament_target_dependencies(pathfinder rclcpp std_msgs sensor_msgs auto_msgs)
 
 install(TARGETS pathfinder DESTINATION lib/${PROJECT_NAME})

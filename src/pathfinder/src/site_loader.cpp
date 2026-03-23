@@ -7,7 +7,7 @@ void SiteLoader::loadBounds(
   auto file = std::ifstream(pathToDir + name + "_bounds.txt");
 
   if (!file.is_open()) {
-    throw std::runtime_error("Bounds file not found for " + name);
+    throw std::runtime_error("Bounds file not found for '" + name + "' inside " + pathToDir);
   }
 
   std::string line;

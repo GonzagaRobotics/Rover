@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "ament_index_cpp/get_package_share_directory.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "search.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
@@ -27,6 +28,9 @@ using FixMsg = sensor_msgs::msg::NavSatFix;
 class Pathfinder : public rclcpp::Node
 {
 private:
+  const std::string static_dir =
+    ament_index_cpp::get_package_share_directory("pathfinder") + "/sites/";
+
   /** The site we are currently on. */
   std::shared_ptr<Site> site;
 

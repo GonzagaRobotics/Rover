@@ -26,8 +26,6 @@ void Pathfinder::onPathfinderCheck()
   plan_pub->publish(plan);
 
   // #ifdef DEBUG
-  auto static_dir = this->get_parameter("static_dir").as_string();
-
   debugKML(static_dir, current_location, Plan{result.first});
   // #endif
 
@@ -64,17 +62,9 @@ Pathfinder::Pathfinder() : Node("pathfinder")
 {
   using namespace std::placeholders;
 
-  auto static_dir = this->declare_parameter("static_dir", rclcpp::PARAMETER_STRING);
-
-  // Double check that the static directory ends with a slash
-  if (static_dir.get<std::string>().back() != '/') {
-    throw std::runtime_error("static_dir must end with a slash");
-  }
-
   auto site_name = this->declare_parameter("site_name", rclcpp::PARAMETER_STRING);
 
-  // Now that we have the directory and name, we can load the site
-  SiteLoader loader(static_dir.get<std::string>());
+  SiteLoader loader(static_dir);
 
   this->site = loader.load(site_name.get<std::string>());
 
