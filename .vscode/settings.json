@@ -1,4 +1,5 @@
 {
+    "python.analysis.stubPath": "~/.pytypings",
     "python.autoComplete.extraPaths": [
         "/opt/ros/humble/lib/python3.10/site-packages",
         "/opt/ros/humble/local/lib/python3.10/dist-packages",
@@ -17,5 +18,6 @@
         ".dockerignore": "plaintext",
         "chrono": "cpp"
     },
-    "cmake.ignoreCMakeListsMissing": true
+    "cmake.ignoreCMakeListsMissing": true,
+    "cmake.sourceDirectory": "${workspaceFolder}/src/auto/obstacle_avoid/"
 }
