@@ -105,32 +105,6 @@ void Pathfinder::onPathfinderCheck()
   current_goal_handle_->succeed(std::make_shared<PathfindAction::Result>(result_msg));
 }
 
-// void Pathfinder::fix_cb(const FixMsg::SharedPtr msg)
-// {
-//   current_location.latitude = msg->latitude;
-//   current_location.longitude = msg->longitude;
-// }
-
-// void Pathfinder::target_cb(const Target::SharedPtr msg)
-// {
-//   RCLCPP_INFO(this->get_logger(), "Received new target: %s", msg->to_string().c_str());
-
-//   if (pathfinding) {
-//     RCLCPP_WARN(this->get_logger(), "Canceling current pathfinding to start the new one");
-
-//     pathfinding = false;
-//     pathfinderFuture.wait();
-//   }
-
-//   pathfinding = true;
-
-//   pathfinderFuture = std::async(std::launch::async, [this, msg]() {
-//     Search search(this->site);
-
-//     return search.findPath(current_location, msg->location, pathfinding);
-//   });
-// }
-
 Pathfinder::Pathfinder() : Node("pathfinder_node", "auto")
 {
   using namespace std::placeholders;
@@ -144,13 +118,8 @@ Pathfinder::Pathfinder() : Node("pathfinder_node", "auto")
   pathfinderCheckTimer = this->create_wall_timer(
     std::chrono::milliseconds(500), std::bind(&Pathfinder::onPathfinderCheck, this));
 
-  // plan_pub = this->create_publisher<Plan>("pathfinder/plan", 10);
-  // fix_sub = this->create_subscription<FixMsg>("fix", 10, std::bind(&Pathfinder::fix_cb, this, _1));
-  // target_sub = this->create_subscription<Target>(
-  //   "pathfinder/target", 10, std::bind(&Pathfinder::target_cb, this, _1));
-
   this->action_server_ = rclcpp_action::create_server<PathfindAction>(
-    this, "pathfinder/pathfind", std::bind(&Pathfinder::handle_goal, this, _1, _2),
+    this, "pathfind", std::bind(&Pathfinder::handle_goal, this, _1, _2),
     std::bind(&Pathfinder::handle_cancel, this, _1),
     std::bind(&Pathfinder::handle_accepted, this, _1));
 
