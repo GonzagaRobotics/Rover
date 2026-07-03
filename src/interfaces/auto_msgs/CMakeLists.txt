@@ -20,6 +20,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetState.srv"
   "srv/Instruct.srv"
   "srv/SetTarget.srv"
+  "action/Pathfind.action"
   DEPENDENCIES std_msgs sensor_msgs
 )
 
