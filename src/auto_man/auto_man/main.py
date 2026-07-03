@@ -28,6 +28,7 @@ class Auto(Node):
     _location = np.array([0.0, 0.0])
     _target: Target | None = None
     _plan: Plan | None = None
+    _curr_waypoint = 0
 
     def __init__(self):
         super().__init__('auto_man')
@@ -163,6 +164,12 @@ class Auto(Node):
 
     def _is_moving(self):
         return self._state in [State.TRAVELING, State.TERMINAL_MOVING, State.TERMINAL_SEARCHING]
+
+    def _traveling(self):
+        # Determine distance to current waypoint 
+        target_wp = self._plan.waypoints[self._curr_waypoint]
+        delta = np.array([target_wp.latitude, target_wp.longitude]) - self._location
+        dist = np.linalg.norm(delta)
 
 
 def main(args=None):
