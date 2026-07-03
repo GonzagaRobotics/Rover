@@ -8,6 +8,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(auto_msgs REQUIRED)
@@ -25,6 +26,7 @@ if(BUILD_TESTING)
 endif()
 
 include_directories(
+  include/pathfinder
   ${auto_msgs_INCLUDE_DIRS}
 )
 
@@ -32,21 +34,21 @@ add_executable(pathfinder
   src/site.cpp
   src/site_loader.cpp
   src/search.cpp
-  src/debug/debug_kml.cpp
   src/pathfinder.cpp
   src/main.cpp)
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  target_compile_definitions(pathfinder PRIVATE DEBUG)
-endif()
+target_link_libraries(pathfinder PUBLIC
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  ${std_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${auto_msgs_TARGETS}
+)
 
 install(
   DIRECTORY sites/
   DESTINATION share/${PROJECT_NAME}/sites
 )
-
-ament_target_dependencies(pathfinder rclcpp std_msgs sensor_msgs auto_msgs)
-
 install(TARGETS pathfinder DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

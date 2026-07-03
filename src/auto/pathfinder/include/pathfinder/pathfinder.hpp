@@ -10,17 +10,15 @@
 #include <vector>
 
 #include "ament_index_cpp/get_package_share_directory.hpp"
+#include "auto_msgs/action/pathfind.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "search.hpp"
-#include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "site.hpp"
 #include "site_loader.hpp"
 
-// #ifdef DEBUG
-#include "debug/debug_kml.hpp"
-// #endif
-
-using FixMsg = sensor_msgs::msg::NavSatFix;
+using PathfindAction = auto_msgs::action::Pathfind;
+using PathfindGoalHandle = rclcpp_action::ServerGoalHandle<PathfindAction>;
 
 /**
  * Finds paths through a site.
@@ -34,10 +32,14 @@ private:
   /** The site we are currently on. */
   std::shared_ptr<Site> site;
 
-  Location current_location;
+  /** A flag indicating if the current pathfinding is canceled. */
+  bool canceled = false;
 
   /** Are we currently pathfinding? */
   std::atomic<bool> pathfinding;
+
+  /** The current goal handle. */
+  std::shared_ptr<PathfindGoalHandle> current_goal_handle_;
 
   /** The future for the pathfinder's search. */
   std::future<std::pair<std::vector<Location>, std::string>> pathfinderFuture;
@@ -45,15 +47,18 @@ private:
   /** The timer that checks if pathfinding is complete. */
   rclcpp::TimerBase::SharedPtr pathfinderCheckTimer;
 
-  rclcpp::Subscription<FixMsg>::SharedPtr fix_sub;
-  rclcpp::Subscription<Target>::SharedPtr target_sub;
+  /** The action server for handling pathfinding requests. */
+  rclcpp_action::Server<PathfindAction>::SharedPtr action_server_;
 
-  rclcpp::Publisher<Plan>::SharedPtr plan_pub;
+  rclcpp_action::GoalResponse handle_goal(
+    const rclcpp_action::GoalUUID &, std::shared_ptr<const PathfindAction::Goal>);
+
+  rclcpp_action::CancelResponse handle_cancel(
+    const std::shared_ptr<PathfindGoalHandle> goal_handle);
+
+  void handle_accepted(const std::shared_ptr<PathfindGoalHandle> goal_handle);
 
   void onPathfinderCheck();
-
-  void fix_cb(const FixMsg::SharedPtr msg);
-  void target_cb(const Target::SharedPtr msg);
 
 public:
   Pathfinder();

@@ -5,8 +5,8 @@
 #include <stdexcept>
 #include <string>
 
-#include "deps/stb_image.h"
 #include "site.hpp"
+#include "stb_image.h"
 
 class SiteLoader
 {
