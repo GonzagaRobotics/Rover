@@ -8,6 +8,9 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(auto_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -24,7 +27,7 @@ endif()
 include_directories(include/fine)
 
 add_executable(fine src/main.cpp src/fine_node.cpp)
-target_link_libraries(fine rclcpp::rclcpp)
+target_link_libraries(fine rclcpp::rclcpp std_msgs::std_msgs sensor_msgs::sensor_msgs auto_msgs::auto_msgs)
 
 install(TARGETS fine DESTINATION lib/${PROJECT_NAME})
 ament_package()

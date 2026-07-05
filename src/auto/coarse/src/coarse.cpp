@@ -168,7 +168,7 @@ void CoarseNode::goto_step()
       wp_index_++;
     }
 
-    // TODO: Move to the waypoint.
+    fine_goal_pub_->publish(plan_->waypoints[wp_index_]);
     return;
   }
 
@@ -193,6 +193,8 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
 
   fix_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
     "/fix", 10, std::bind(&CoarseNode::fix_cb, this, _1));
+  fine_goal_pub_ = this->create_publisher<auto_msgs::msg::Location>("fine_goal", 10);
+
   pathfind_client_ = rclcpp_action::create_client<Pathfind>(this, "pathfind");
 
   goto_server_ = rclcpp_action::create_server<GoTo>(

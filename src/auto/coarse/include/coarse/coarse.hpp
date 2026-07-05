@@ -29,6 +29,7 @@ private:
   std::shared_ptr<GoalHandlePathfind> pathfind_goal_handle_;
 
   rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr fix_sub_;
+  rclcpp::Publisher<auto_msgs::msg::Location>::SharedPtr fine_goal_pub_;
 
   rclcpp_action::Client<Pathfind>::SharedPtr pathfind_client_;
   rclcpp_action::Server<GoTo>::SharedPtr goto_server_;
