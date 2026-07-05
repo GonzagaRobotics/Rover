@@ -43,6 +43,8 @@ void FineNode::timer_cb()
   location_->latitude += std::copysign(std::min(0.0001, std::abs(lat_diff)), lat_diff);
   location_->longitude += std::copysign(std::min(0.0001, std::abs(lon_diff)), lon_diff);
 
+  std::cout << "Moved to: (" << location_->latitude << ", " << location_->longitude << ")\n";
+
   sensor_msgs::msg::NavSatFix fix_msg;
   fix_msg.latitude = location_->latitude;
   fix_msg.longitude = location_->longitude;

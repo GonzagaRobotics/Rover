@@ -86,6 +86,12 @@ void CoarseNode::pathfind_goal_res_cb(const GoalHandlePathfind::SharedPtr & goal
   }
 
   RCLCPP_INFO(get_logger(), "Pathfind goal accepted");
+
+  json feedback = {{"type", "pathfinding"}};
+  auto feedback_msg = std::make_shared<GoTo::Feedback>();
+  feedback_msg->status = feedback.dump();
+  goto_goal_handle_->publish_feedback(feedback_msg);
+
   pathfind_goal_handle_ = goal_handle;
 }
 
@@ -117,6 +123,18 @@ void CoarseNode::pathfind_res_cb(const GoalHandlePathfind::WrappedResult & resul
     get_logger(), "Pathfind result received with %ld waypoints",
     result.result->plan.waypoints.size());
 
+  json feedback;
+  feedback["type"] = "pathfind_complete";
+  feedback["wp"] = json::array();
+  for (const auto & wp : result.result->plan.waypoints) {
+    json wp_json = {wp.latitude, wp.longitude};
+    feedback["wp"].push_back(wp_json);
+  }
+
+  auto feedback_msg = std::make_shared<GoTo::Feedback>();
+  feedback_msg->status = feedback.dump();
+  goto_goal_handle_->publish_feedback(feedback_msg);
+
   pathfind_goal_handle_.reset();
   plan_ = std::make_shared<auto_msgs::msg::Plan>(result.result->plan);
   wp_index_ = 0;
@@ -136,6 +154,7 @@ void CoarseNode::goto_check()
       pathfind_client_->async_cancel_goal(pathfind_goal_handle_);
     }
 
+    fine_stop_pub_->publish(std_msgs::msg::Empty());
     return;
   }
 
@@ -152,6 +171,7 @@ void CoarseNode::goto_step()
     RCLCPP_ERROR(get_logger(), "Plan is empty. Cannot proceed.");
     goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
     goto_goal_handle_.reset();
+    fine_stop_pub_->publish(std_msgs::msg::Empty());
     return;
   }
 
@@ -169,6 +189,10 @@ void CoarseNode::goto_step()
     }
 
     fine_goal_pub_->publish(plan_->waypoints[wp_index_]);
+    json feedback = {{"type", "traveling"}, {"wp_index", wp_index_}};
+    auto feedback_msg = std::make_shared<GoTo::Feedback>();
+    feedback_msg->status = feedback.dump();
+    goto_goal_handle_->publish_feedback(feedback_msg);
     return;
   }
 
@@ -185,6 +209,7 @@ void CoarseNode::goto_step()
 
   goto_goal_handle_->succeed(std::make_shared<GoTo::Result>());
   goto_goal_handle_.reset();
+  fine_stop_pub_->publish(std_msgs::msg::Empty());
 }
 
 CoarseNode::CoarseNode() : Node("coarse_node", "auto")
@@ -194,6 +219,7 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
   fix_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
     "/fix", 10, std::bind(&CoarseNode::fix_cb, this, _1));
   fine_goal_pub_ = this->create_publisher<auto_msgs::msg::Location>("fine_goal", 10);
+  fine_stop_pub_ = this->create_publisher<std_msgs::msg::Empty>("fine_stop", 10);
 
   pathfind_client_ = rclcpp_action::create_client<Pathfind>(this, "pathfind");
 

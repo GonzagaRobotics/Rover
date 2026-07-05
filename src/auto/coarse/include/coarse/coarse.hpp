@@ -7,10 +7,14 @@
 #include "auto_msgs/msg/location.hpp"
 #include "auto_msgs/msg/plan.hpp"
 #include "auto_msgs/msg/target.hpp"
+#include "json.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
+#include "std_msgs/msg/empty.hpp"
 #include "utils.hpp"
+
+using json = nlohmann::json;
 
 using Pathfind = auto_msgs::action::Pathfind;
 using GoalHandlePathfind = rclcpp_action::ClientGoalHandle<Pathfind>;
@@ -30,6 +34,7 @@ private:
 
   rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr fix_sub_;
   rclcpp::Publisher<auto_msgs::msg::Location>::SharedPtr fine_goal_pub_;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr fine_stop_pub_;
 
   rclcpp_action::Client<Pathfind>::SharedPtr pathfind_client_;
   rclcpp_action::Server<GoTo>::SharedPtr goto_server_;

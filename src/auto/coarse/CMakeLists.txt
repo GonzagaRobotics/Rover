@@ -23,7 +23,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-include_directories(include/coarse)
+include_directories(include/coarse include/json)
 
 add_executable(coarse src/main.cpp src/coarse.cpp src/utils.cpp)
 target_link_libraries(coarse rclcpp::rclcpp rclcpp_action::rclcpp_action auto_msgs::auto_msgs)
