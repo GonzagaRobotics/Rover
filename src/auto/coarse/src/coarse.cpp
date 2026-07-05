@@ -7,19 +7,19 @@ void CoarseNode::fix_cb(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
     return;
   }
 
-  if (!last_location_) {
-    last_location_ = std::make_shared<auto_msgs::msg::Location>();
+  if (!location_) {
+    location_ = std::make_shared<auto_msgs::msg::Location>();
   }
 
-  last_location_->latitude = msg->latitude;
-  last_location_->longitude = msg->longitude;
-  last_location_->altitude = msg->altitude;
+  location_->latitude = msg->latitude;
+  location_->longitude = msg->longitude;
+  location_->altitude = msg->altitude;
 }
 
 rclcpp_action::GoalResponse CoarseNode::goto_goal_cb(
   const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const GoTo::Goal> goal)
 {
-  if (!last_location_) {
+  if (!location_) {
     RCLCPP_WARN(get_logger(), "No GPS fix, rejecting goto goal");
     return rclcpp_action::GoalResponse::REJECT;
   }
@@ -68,7 +68,7 @@ void CoarseNode::goto_accepted_cb(const std::shared_ptr<GoalHandleGoTo> goal_han
   pathfind_goal_opts.result_callback = std::bind(&CoarseNode::pathfind_res_cb, this, _1);
 
   auto pathfind_goal = Pathfind::Goal();
-  pathfind_goal.current = *last_location_;
+  pathfind_goal.current = *location_;
   pathfind_goal.target = *target_;
 
   pathfind_client_->async_send_goal(pathfind_goal, pathfind_goal_opts);
@@ -119,6 +119,7 @@ void CoarseNode::pathfind_res_cb(const GoalHandlePathfind::WrappedResult & resul
 
   pathfind_goal_handle_.reset();
   plan_ = std::make_shared<auto_msgs::msg::Plan>(result.result->plan);
+  wp_index_ = 0;
 }
 
 void CoarseNode::goto_check()
@@ -142,6 +143,46 @@ void CoarseNode::goto_check()
     return;
   }
 
+  goto_step();
+}
+
+void CoarseNode::goto_step()
+{
+  if (plan_->waypoints.empty()) {
+    RCLCPP_ERROR(get_logger(), "Plan is empty. Cannot proceed.");
+    goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
+    goto_goal_handle_.reset();
+    return;
+  }
+
+  auto next_wp = plan_->waypoints[wp_index_];
+  bool last_wp = wp_index_ == plan_->waypoints.size() - 1;  // The last waypoint is the target
+  double dist = loc_dist(*location_, next_wp);
+
+  RCLCPP_INFO(get_logger(), "Distance to waypoint %ld: %.2f meters", wp_index_, dist);
+
+  // TODO: Stop or move the rover
+
+  if (!last_wp) {
+    if (dist < 10) {
+      wp_index_++;
+    }
+
+    // TODO: Move to the waypoint.
+    return;
+  }
+
+  // GNSS targets have a tighter tolerance because they are not visible to the camera
+  if (target_->type == auto_msgs::msg::Target::TYPE_GNSS) {
+    if (dist > 1.5) {
+      return;
+    }
+  } else {
+    if (dist > 5) {
+      return;
+    }
+  }
+
   goto_goal_handle_->succeed(std::make_shared<GoTo::Result>());
   goto_goal_handle_.reset();
 }
@@ -163,7 +204,7 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
     this->create_wall_timer(std::chrono::seconds(1), std::bind(&CoarseNode::goto_check, this));
 
   // Test init of location
-  last_location_ = std::make_shared<auto_msgs::msg::Location>();
-  last_location_->latitude = 38.40645261293369;
-  last_location_->longitude = -110.79137336968033;
+  location_ = std::make_shared<auto_msgs::msg::Location>();
+  location_->latitude = 38.40645261293369;
+  location_->longitude = -110.79137336968033;
 }

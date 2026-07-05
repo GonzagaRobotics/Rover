@@ -1,3 +1,5 @@
+#pragma once
+
 #include <chrono>
 
 #include "auto_msgs/action/go_to.hpp"
@@ -8,6 +10,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
+#include "utils.hpp"
 
 using Pathfind = auto_msgs::action::Pathfind;
 using GoalHandlePathfind = rclcpp_action::ClientGoalHandle<Pathfind>;
@@ -17,9 +20,10 @@ using GoalHandleGoTo = rclcpp_action::ServerGoalHandle<GoTo>;
 class CoarseNode : public rclcpp::Node
 {
 private:
-  auto_msgs::msg::Location::SharedPtr last_location_;
+  auto_msgs::msg::Location::SharedPtr location_;
   auto_msgs::msg::Target::SharedPtr target_;
   auto_msgs::msg::Plan::SharedPtr plan_;
+  size_t wp_index_ = 0;
 
   std::shared_ptr<GoalHandleGoTo> goto_goal_handle_;
   std::shared_ptr<GoalHandlePathfind> pathfind_goal_handle_;
@@ -42,6 +46,8 @@ private:
   void pathfind_res_cb(const GoalHandlePathfind::WrappedResult & result);
 
   void goto_check();
+
+  void goto_step();
 
 public:
   CoarseNode();
