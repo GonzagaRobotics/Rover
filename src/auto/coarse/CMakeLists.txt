@@ -7,7 +7,6 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(Eigen3 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(auto_msgs REQUIRED)
@@ -27,7 +26,7 @@ endif()
 include_directories(include/coarse)
 
 add_executable(coarse src/main.cpp src/coarse.cpp src/utils.cpp)
-target_link_libraries(coarse Eigen3::Eigen rclcpp::rclcpp rclcpp_action::rclcpp_action auto_msgs::auto_msgs)
+target_link_libraries(coarse rclcpp::rclcpp rclcpp_action::rclcpp_action auto_msgs::auto_msgs)
 
 install(TARGETS coarse DESTINATION lib/${PROJECT_NAME})
 ament_package()
