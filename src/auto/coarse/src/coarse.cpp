@@ -16,6 +16,23 @@ void CoarseNode::fix_cb(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
   location_->altitude = msg->altitude;
 }
 
+void CoarseNode::stop_cb(const std_msgs::msg::Empty::SharedPtr)
+{
+  if (goto_goal_handle_) {
+    RCLCPP_INFO(get_logger(), "Stopping goto goal");
+    goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
+    goto_goal_handle_.reset();
+  }
+
+  if (pathfind_goal_handle_) {
+    RCLCPP_INFO(get_logger(), "Stopping pathfind goal");
+    pathfind_client_->async_cancel_goal(pathfind_goal_handle_);
+    pathfind_goal_handle_.reset();
+  }
+
+  fine_stop_pub_->publish(std_msgs::msg::Empty());
+}
+
 rclcpp_action::GoalResponse CoarseNode::goto_goal_cb(
   const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const GoTo::Goal> goal)
 {
@@ -179,8 +196,6 @@ void CoarseNode::goto_step()
   bool last_wp = wp_index_ == plan_->waypoints.size() - 1;  // The last waypoint is the target
   double dist = loc_dist(*location_, next_wp);
 
-  RCLCPP_INFO(get_logger(), "Distance to waypoint %ld: %.2f meters", wp_index_, dist);
-
   // TODO: Stop or move the rover
 
   if (!last_wp) {
@@ -189,12 +204,16 @@ void CoarseNode::goto_step()
     }
 
     fine_goal_pub_->publish(plan_->waypoints[wp_index_]);
-    json feedback = {{"type", "traveling"}, {"wp_index", wp_index_}};
+    json feedback = {{"type", "traveling"}, {"wp", wp_index_}};
     auto feedback_msg = std::make_shared<GoTo::Feedback>();
     feedback_msg->status = feedback.dump();
     goto_goal_handle_->publish_feedback(feedback_msg);
+
+    RCLCPP_INFO(get_logger(), "Distance to waypoint %ld: %.2f meters", wp_index_, dist);
     return;
   }
+
+  RCLCPP_INFO(get_logger(), "Distance to target: %.2f meters", dist);
 
   // GNSS targets have a tighter tolerance because they are not visible to the camera
   if (target_->type == auto_msgs::msg::Target::TYPE_GNSS) {
@@ -218,6 +237,8 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
 
   fix_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
     "/fix", 10, std::bind(&CoarseNode::fix_cb, this, _1));
+  goto_stop_sub_ = this->create_subscription<std_msgs::msg::Empty>(
+    "goto_stop", 10, std::bind(&CoarseNode::stop_cb, this, _1));
   fine_goal_pub_ = this->create_publisher<auto_msgs::msg::Location>("fine_goal", 10);
   fine_stop_pub_ = this->create_publisher<std_msgs::msg::Empty>("fine_stop", 10);
 
