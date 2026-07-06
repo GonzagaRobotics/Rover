@@ -40,8 +40,12 @@ void FineNode::timer_cb()
   double lat_diff = goal_location_->latitude - location_->latitude;
   double lon_diff = goal_location_->longitude - location_->longitude;
 
-  location_->latitude += std::copysign(std::min(0.0001, std::abs(lat_diff)), lat_diff);
-  location_->longitude += std::copysign(std::min(0.0001, std::abs(lon_diff)), lon_diff);
+  double bearing = std::atan2(lon_diff, lat_diff);
+  double lat_move = 0.0001 * std::cos(bearing);
+  double lon_move = 0.0001 * std::sin(bearing);
+
+  location_->latitude += std::abs(lat_move) < std::abs(lat_diff) ? lat_move : lat_diff;
+  location_->longitude += std::abs(lon_move) < std::abs(lon_diff) ? lon_move : lon_diff;
 
   std::cout << "Moved to: (" << location_->latitude << ", " << location_->longitude << ")\n";
 
