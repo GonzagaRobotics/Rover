@@ -1,6 +1,6 @@
 #include "coarse.hpp"
 
-void CoarseNode::fix_cb(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
+void CoarseNode::fix_cb(const FixMsg::SharedPtr msg)
 {
   if (msg->status.status == sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX) {
     RCLCPP_WARN(get_logger(), "No GPS fix");
@@ -8,7 +8,7 @@ void CoarseNode::fix_cb(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
   }
 
   if (!location_) {
-    location_ = std::make_shared<auto_msgs::msg::Location>();
+    location_ = std::make_shared<LocMsg>();
   }
 
   location_->latitude = msg->latitude;
@@ -16,7 +16,7 @@ void CoarseNode::fix_cb(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
   location_->altitude = msg->altitude;
 }
 
-void CoarseNode::stop_cb(const std_msgs::msg::Empty::SharedPtr)
+void CoarseNode::stop_cb(const EmptyMsg::SharedPtr)
 {
   if (goto_goal_handle_) {
     RCLCPP_INFO(get_logger(), "Stopping goto goal");
@@ -30,7 +30,7 @@ void CoarseNode::stop_cb(const std_msgs::msg::Empty::SharedPtr)
     pathfind_goal_handle_.reset();
   }
 
-  fine_stop_pub_->publish(std_msgs::msg::Empty());
+  fine_stop_pub_->publish(EmptyMsg());
 }
 
 rclcpp_action::GoalResponse CoarseNode::goto_goal_cb(
@@ -171,7 +171,7 @@ void CoarseNode::goto_check()
       pathfind_client_->async_cancel_goal(pathfind_goal_handle_);
     }
 
-    fine_stop_pub_->publish(std_msgs::msg::Empty());
+    fine_stop_pub_->publish(EmptyMsg());
     return;
   }
 
@@ -188,7 +188,7 @@ void CoarseNode::goto_step()
     RCLCPP_ERROR(get_logger(), "Plan is empty. Cannot proceed.");
     goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
     goto_goal_handle_.reset();
-    fine_stop_pub_->publish(std_msgs::msg::Empty());
+    fine_stop_pub_->publish(EmptyMsg());
     return;
   }
 
@@ -228,19 +228,17 @@ void CoarseNode::goto_step()
 
   goto_goal_handle_->succeed(std::make_shared<GoTo::Result>());
   goto_goal_handle_.reset();
-  fine_stop_pub_->publish(std_msgs::msg::Empty());
+  fine_stop_pub_->publish(EmptyMsg());
 }
 
 CoarseNode::CoarseNode() : Node("coarse_node", "auto")
 {
   using namespace std::placeholders;
 
-  fix_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
-    "/fix", 10, std::bind(&CoarseNode::fix_cb, this, _1));
-  goto_stop_sub_ = this->create_subscription<std_msgs::msg::Empty>(
-    "goto_stop", 10, std::bind(&CoarseNode::stop_cb, this, _1));
-  fine_goal_pub_ = this->create_publisher<auto_msgs::msg::Location>("fine_goal", 10);
-  fine_stop_pub_ = this->create_publisher<std_msgs::msg::Empty>("fine_stop", 10);
+  fix_sub_ = this->create_subscription<FixMsg>("/fix", 10, BIND(fix_cb));
+  goto_stop_sub_ = this->create_subscription<EmptyMsg>("goto_stop", 10, BIND(stop_cb));
+  fine_goal_pub_ = this->create_publisher<LocMsg>("fine_goal", 10);
+  fine_stop_pub_ = this->create_publisher<EmptyMsg>("fine_stop", 10);
 
   pathfind_client_ = rclcpp_action::create_client<Pathfind>(this, "pathfind");
 
@@ -253,7 +251,7 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
     this->create_wall_timer(std::chrono::seconds(1), std::bind(&CoarseNode::goto_check, this));
 
   // Test init of location
-  location_ = std::make_shared<auto_msgs::msg::Location>();
+  location_ = std::make_shared<LocMsg>();
   location_->latitude = 38.40645261293369;
   location_->longitude = -110.79137336968033;
 }

@@ -14,7 +14,13 @@
 #include "std_msgs/msg/empty.hpp"
 #include "utils.hpp"
 
+#define BIND(x) std::bind(&CoarseNode::x, this, std::placeholders::_1)
+
 using json = nlohmann::json;
+
+using EmptyMsg = std_msgs::msg::Empty;
+using FixMsg = sensor_msgs::msg::NavSatFix;
+using LocMsg = auto_msgs::msg::Location;
 
 using Pathfind = auto_msgs::action::Pathfind;
 using GoalHandlePathfind = rclcpp_action::ClientGoalHandle<Pathfind>;
@@ -24,7 +30,7 @@ using GoalHandleGoTo = rclcpp_action::ServerGoalHandle<GoTo>;
 class CoarseNode : public rclcpp::Node
 {
 private:
-  auto_msgs::msg::Location::SharedPtr location_;
+  LocMsg::SharedPtr location_;
   auto_msgs::msg::Target::SharedPtr target_;
   auto_msgs::msg::Plan::SharedPtr plan_;
   size_t wp_index_ = 0;
@@ -35,17 +41,17 @@ private:
   /// @brief Needed to cancel the running action from the Control System
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr goto_stop_sub_;
 
-  rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr fix_sub_;
-  rclcpp::Publisher<auto_msgs::msg::Location>::SharedPtr fine_goal_pub_;
-  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr fine_stop_pub_;
+  rclcpp::Subscription<FixMsg>::SharedPtr fix_sub_;
+  rclcpp::Publisher<LocMsg>::SharedPtr fine_goal_pub_;
+  rclcpp::Publisher<EmptyMsg>::SharedPtr fine_stop_pub_;
 
   rclcpp_action::Client<Pathfind>::SharedPtr pathfind_client_;
   rclcpp_action::Server<GoTo>::SharedPtr goto_server_;
 
   rclcpp::TimerBase::SharedPtr goto_check_timer_;
 
-  void fix_cb(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
-  void stop_cb(const std_msgs::msg::Empty::SharedPtr);
+  void fix_cb(const FixMsg::SharedPtr msg);
+  void stop_cb(const EmptyMsg::SharedPtr);
 
   rclcpp_action::GoalResponse goto_goal_cb(
     const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const GoTo::Goal> goal);
