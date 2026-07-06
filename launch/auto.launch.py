@@ -8,14 +8,14 @@ from launch.launch_description_sources import AnyLaunchDescriptionSource
 
 def generate_launch_description():
     return LaunchDescription([
-        IncludeLaunchDescription(
-            AnyLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('rosbridge_server'),
-                    'launch/rosbridge_websocket_launch.xml'
-                )
-            )
-        ),
+        # IncludeLaunchDescription(
+        #     AnyLaunchDescriptionSource(
+        #         os.path.join(
+        #             get_package_share_directory('rosbridge_server'),
+        #             'launch/rosbridge_websocket_launch.xml'
+        #         )
+        #     )
+        # ),
         Node(
             package='pathfinder',
             executable='pathfinder',
@@ -24,7 +24,11 @@ def generate_launch_description():
             ]
         ),
         Node(
-            package='auto_man',
-            executable='auto_man',
+            package='coarse',
+            executable='coarse',
         ),
+        Node(
+            package='fine',
+            executable='fine',
+        )
     ])
