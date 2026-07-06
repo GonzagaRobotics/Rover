@@ -1,5 +1,0 @@
-Target target
----
-bool ok
-# Empty if ok is true
-string reason

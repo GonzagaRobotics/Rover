@@ -1,7 +1,9 @@
 Target target
 ---
-# JSON format
+State state
+# JSON format. Always contains at least "{}"
 string result
 ---
-# JSON format
+State state
+# JSON format. Always contains at least "{}"
 string status
