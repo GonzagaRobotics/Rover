@@ -32,15 +32,19 @@ double Site::getLatSouth() const { return this->latSouth; }
 
 double Site::getLngWest() const { return this->lngWest; }
 
-Location Site::getGeoLoc(int x, int y) const
+LocMsg Site::getGeoLoc(int x, int y) const
 {
   double lat = getLatNorth() - (getLatNorth() - getLatSouth()) * (y / (double)getHeight());
   double lng = getLngWest() + (getLngEast() - getLngWest()) * (x / (double)getWidth());
 
-  return Location{lat, lng, 0.0};
+  LocMsg loc;
+  loc.latitude = lat;
+  loc.longitude = lng;
+
+  return loc;
 }
 
-std::pair<int, int> Site::getXY(const Location & geoLoc) const
+std::pair<int, int> Site::getXY(const LocMsg & geoLoc) const
 {
   int x =
     std::round(((geoLoc.longitude - getLngWest()) / (getLngEast() - getLngWest()) * getWidth()));

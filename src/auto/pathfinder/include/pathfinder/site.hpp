@@ -4,7 +4,9 @@
 #include <memory>
 #include <utility>
 
-#include "auto_msgs/Types.hpp"
+#include "auto_msgs/msg/location.hpp"
+
+using LocMsg = auto_msgs::msg::Location;
 
 /**
  * A site represents an area of land that we want to find a path through.
@@ -51,8 +53,8 @@ public:
   double getLatSouth() const;
   double getLngWest() const;
 
-  Location getGeoLoc(int x, int y) const;
-  std::pair<int, int> getXY(const Location & geoLoc) const;
+  LocMsg getGeoLoc(int x, int y) const;
+  std::pair<int, int> getXY(const LocMsg & geoLoc) const;
 
   /**
      * Check if a given point is an obstacle. Any out of bounds point is an obstacle.

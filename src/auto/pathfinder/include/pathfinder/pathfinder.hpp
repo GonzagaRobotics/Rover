@@ -42,7 +42,7 @@ private:
   std::shared_ptr<PathfindGoalHandle> current_goal_handle_;
 
   /** The future for the pathfinder's search. */
-  std::future<std::pair<std::vector<Location>, std::string>> pathfinderFuture;
+  std::future<std::pair<std::vector<LocMsg>, std::string>> pathfinderFuture;
 
   /** The timer that checks if pathfinding is complete. */
   rclcpp::TimerBase::SharedPtr pathfinderCheckTimer;

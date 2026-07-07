@@ -10,7 +10,6 @@
 #include <utility>
 #include <vector>
 
-#include "auto_msgs/Types.hpp"
 #include "search_node.hpp"
 #include "site.hpp"
 
@@ -110,11 +109,11 @@ private:
      *
      * @return The simplified path.
      */
-  std::vector<Location> simplifyPath(const std::vector<const SearchNode *> & path) const;
+  std::vector<LocMsg> simplifyPath(const std::vector<const SearchNode *> & path) const;
 
 public:
   Search(std::shared_ptr<Site> site);
 
-  std::pair<std::vector<Location>, std::string> findPath(
-    Location start, Location end, std::atomic<bool> & pathfinding);
+  std::pair<std::vector<LocMsg>, std::string> findPath(
+    LocMsg start, LocMsg end, std::atomic<bool> & pathfinding);
 };

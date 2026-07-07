@@ -44,19 +44,8 @@ void Pathfinder::handle_accepted(const std::shared_ptr<PathfindGoalHandle> goal_
   pathfinderFuture = std::async(std::launch::async, [this, goal_handle]() {
     Search search(this->site);
 
-    auto goal_start = goal_handle->get_goal()->current;
-    Location start;
-    start.latitude = goal_start.latitude;
-    start.longitude = goal_start.longitude;
-    start.altitude = goal_start.altitude;
-
-    auto goal_end = goal_handle->get_goal()->target;
-    Location end;
-    end.latitude = goal_end.location.latitude;
-    end.longitude = goal_end.location.longitude;
-    end.altitude = goal_end.location.altitude;
-
-    return search.findPath(start, end, pathfinding);
+    auto goal = goal_handle->get_goal();
+    return search.findPath(goal->current, goal->target.location, pathfinding);
   });
 }
 
@@ -94,13 +83,7 @@ void Pathfinder::onPathfinderCheck()
 
   RCLCPP_INFO(this->get_logger(), "Pathfinding complete");
 
-  for (const auto & location : result.first) {
-    auto_msgs::msg::Location loc{};
-    loc.latitude = location.latitude;
-    loc.longitude = location.longitude;
-    loc.altitude = location.altitude;
-    result_msg.plan.waypoints.push_back(loc);
-  }
+  result_msg.plan.waypoints = result.first;
 
   current_goal_handle_->succeed(std::make_shared<PathfindAction::Result>(result_msg));
 }

@@ -278,9 +278,9 @@ std::vector<const SearchNode *> Search::search(
   return std::vector<const SearchNode *>();
 }
 
-std::vector<Location> Search::simplifyPath(const std::vector<const SearchNode *> & path) const
+std::vector<LocMsg> Search::simplifyPath(const std::vector<const SearchNode *> & path) const
 {
-  std::vector<Location> simplified;
+  std::vector<LocMsg> simplified;
 
   const SearchNode * target = path.back();
   const SearchNode * current = path.front();
@@ -310,8 +310,8 @@ std::vector<Location> Search::simplifyPath(const std::vector<const SearchNode *>
   return simplified;
 }
 
-std::pair<std::vector<Location>, std::string> Search::findPath(
-  Location start, Location end, std::atomic<bool> & pathfinding)
+std::pair<std::vector<LocMsg>, std::string> Search::findPath(
+  LocMsg start, LocMsg end, std::atomic<bool> & pathfinding)
 {
   // Get the start and end nodes
   auto startNode = getNode(site->getXY(start).first, site->getXY(start).second);
@@ -384,10 +384,16 @@ std::pair<std::vector<Location>, std::string> Search::findPath(
   auto path = search(startNode, endNode, pathfinding);
 
   if (path.size() == 0) {
-    return std::make_pair(std::vector<Location>(), "This should never happen");
+    return std::make_pair(std::vector<LocMsg>(), "This should never happen");
   }
 
   auto simplePath = simplifyPath(path);
+
+  if (startNode != origStartNode) {
+    simplePath.insert(simplePath.begin(), site->getGeoLoc(startNode->x, startNode->y));
+  }
+
+  simplePath.insert(simplePath.begin(), start);
 
   if (endNode != origEndNode) {
     if (origEndNode) {
