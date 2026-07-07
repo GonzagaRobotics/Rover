@@ -1,9 +1,9 @@
 Target target
 ---
 State state
-# JSON format. Always contains at least "{}"
-string result
+# JSON format
+string result "{}"
 ---
 State state
-# JSON format. Always contains at least "{}"
-string status
+# JSON format
+string status "{}"
