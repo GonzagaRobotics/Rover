@@ -1,10 +1,13 @@
 #pragma once
 
+#include <Eigen/Dense>
 #include <functional>
 #include <rclcpp/rclcpp.hpp>
 
 #include "auto_msgs/msg/location.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include "nav_msgs/msg/occupancy_grid.hpp"
+#include "obstacles.hpp"
 #include "pcl/filters/crop_box.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
@@ -19,6 +22,7 @@
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/static_transform_broadcaster.hpp"
 #include "tf2_ros/transform_listener.hpp"
+#include "visualization_msgs/msg/marker.hpp"
 
 #define BIND(f) std::bind(&FineNode::f, this, std::placeholders::_1)
 
@@ -35,8 +39,13 @@ private:
   auto_msgs::msg::Location::SharedPtr goal_location_;
 
   PGR pgr_;
+  Obstacles obstacles_;
   // testing
   rclcpp::Publisher<PclMsg>::SharedPtr pcl_pub_;
+  // testing
+  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr grid_pub_;
+  // testing
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
 
   rclcpp::Subscription<PclMsg>::SharedPtr pcl_sub_;
   rclcpp::Subscription<FixMsg>::SharedPtr fix_sub_;

@@ -28,6 +28,7 @@ private:
 
   Eigen::MatrixXi occ_ = Eigen::MatrixXi::Zero(grid_x_, grid_y_);
   Eigen::MatrixXf grid_rep_ = Eigen::MatrixXf::Zero(grid_x_, grid_y_);
+  Eigen::MatrixXf grid_att_ = Eigen::MatrixXf::Zero(grid_x_, grid_y_);
 
   void update_repulsive_cost(int x, int y);
   void update_attractive_potential(int x, int y);
@@ -55,6 +56,8 @@ private:
 
 public:
   Obstacles() = default;
+
+  const Eigen::MatrixXf & get_grid() const { return grid_rep_; }
 
   void update(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, Eigen::Vector2f goal);
 

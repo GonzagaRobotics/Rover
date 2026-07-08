@@ -10,7 +10,9 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(auto_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
@@ -33,8 +35,17 @@ endif()
 include_directories(include/fine)
 include_directories(${PCL_INCLUDE_DIRS})
 
-add_executable(fine src/main.cpp src/fine_node.cpp src/pgr.cpp)
-target_link_libraries(fine rclcpp::rclcpp std_msgs::std_msgs sensor_msgs::sensor_msgs auto_msgs::auto_msgs ${PCL_LIBRARIES} Eigen3::Eigen tf2_ros::tf2_ros)
+add_executable(fine src/main.cpp src/fine_node.cpp src/pgr.cpp src/obstacles.cpp)
+target_link_libraries(fine 
+  rclcpp::rclcpp 
+  std_msgs::std_msgs 
+  sensor_msgs::sensor_msgs 
+  nav_msgs::nav_msgs 
+  auto_msgs::auto_msgs 
+  visualization_msgs::visualization_msgs
+  ${PCL_LIBRARIES} 
+  Eigen3::Eigen 
+  tf2_ros::tf2_ros)
 # These dependencies don't seem to have the proper targets needed for target_link_libraries, so for now, just use the old style
 ament_target_dependencies(fine pcl_ros pcl_conversions)
 

@@ -35,12 +35,50 @@ void FineNode::pcl_cb(const PclMsg::SharedPtr msg)
   crop_box.setNegative(false);
   crop_box.filter(*cloud);
 
-  auto obstacle_cloud = pgr_.remove_ground(cloud);
+  auto obstacle_cloud = pgr_.remove_ground(cloud).makeShared();
 
   PclMsg output_msg;
-  pcl::toROSMsg(obstacle_cloud, output_msg);
+  pcl::toROSMsg(*obstacle_cloud, output_msg);
   output_msg.header = msg->header;
   pcl_pub_->publish(output_msg);
+
+  obstacles_.update(obstacle_cloud, Eigen::Vector2f::Zero());
+  auto rep = obstacles_.get_grid();
+
+  // Publish the vector as a marker for visualization
+  auto rep_vec = obstacles_.compute_vector();
+  visualization_msgs::msg::Marker marker_msg;
+  marker_msg.header = msg->header;
+  marker_msg.ns = "obstacle_vector";
+  marker_msg.id = 0;
+  marker_msg.type = visualization_msgs::msg::Marker::ARROW;
+  marker_msg.action = visualization_msgs::msg::Marker::ADD;
+  marker_msg.pose.orientation.w = 1.0;
+  marker_msg.scale.x = 0.1;
+  marker_msg.scale.y = 0.2;
+  marker_msg.color.a = 1.0;
+  marker_msg.color.r = 1.0;
+  marker_msg.points.push_back(geometry_msgs::msg::Point());
+  geometry_msgs::msg::Point end_point;
+  end_point.x = rep_vec.x();
+  end_point.y = rep_vec.y();
+  marker_msg.points.push_back(end_point);
+  marker_pub_->publish(marker_msg);
+
+  nav_msgs::msg::OccupancyGrid grid_msg;
+  grid_msg.header = msg->header;
+  grid_msg.info.resolution = 0.1;
+  grid_msg.info.width = rep.cols();
+  grid_msg.info.height = rep.rows();
+  grid_msg.info.origin.position.x = -10.0;
+  grid_msg.info.origin.position.y = -10.0;
+  grid_msg.data.resize(rep.size());
+  for (int i = 0; i < rep.rows(); ++i) {
+    for (int j = 0; j < rep.cols(); ++j) {
+      grid_msg.data[j * rep.cols() + i] = static_cast<int8_t>(rep(i, j));
+    }
+  }
+  grid_pub_->publish(grid_msg);
 }
 
 void FineNode::goal_cb(const auto_msgs::msg::Location::SharedPtr msg)
@@ -89,7 +127,9 @@ FineNode::FineNode() : rclcpp::Node("fine_node", "auto")
   location_->latitude = 38.40645261293369;
   location_->longitude = -110.79137336968033;
 
+  grid_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("fine_grid", 10);
   pcl_pub_ = this->create_publisher<PclMsg>("fine_pcl", 10);
+  marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("fine_marker", 10);
 
   //   fix_sub_ = this->create_subscription<FixMsg>("/fix", 10, BIND(fix_cb));
   imu_sub_ = this->create_subscription<ImuMsg>("/imu", 10, BIND(imu_cb));

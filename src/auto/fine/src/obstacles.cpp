@@ -30,7 +30,9 @@ void Obstacles::update_repulsive_cost(int x0, int y0)
   }
 
   if (nearest_x >= 0 && nearest_y >= 0) {
-    grid_rep_(x0, y0) += repulsive_cost(x0, y0, nearest_x, nearest_y);
+    grid_rep_(x0, y0) = repulsive_cost(x0, y0, nearest_x, nearest_y);
+  } else {
+    grid_rep_(x0, y0) = 0.0f;
   }
 }
 
@@ -41,18 +43,27 @@ void Obstacles::update_attractive_potential(int x, int y)
 
   float dist = (cell_pos - goal_).norm();
   float potential = 0.5f * attractive_multiplier_ * dist * dist;
-  grid_rep_(x, y) -= std::min(potential, attractive_max_);
+  grid_att_(x, y) = std::min(potential, attractive_max_);
 }
 
-Eigen::Vector2f Obstacles::compute_attractive_vector() {}
+Eigen::Vector2f Obstacles::compute_attractive_vector() { return Eigen::Vector2f::Zero(); }
 
-Eigen::Vector2f Obstacles::compute_repulsive_vector() { return Eigen::Vector2f(); }
+Eigen::Vector2f Obstacles::compute_repulsive_vector()
+{
+  // Aproximate the gradient of the repulsive potential at the middle of the grid
+  int x = grid_x_ / 2;
+  int y = grid_y_ / 2;
+
+  float dx = (grid_rep_(x + 1, y) - grid_rep_(x - 1, y)) / (2.0f * resolution_);
+  float dy = (grid_rep_(x, y + 1) - grid_rep_(x, y - 1)) / (2.0f * resolution_);
+
+  return Eigen::Vector2f(dx, dy);
+}
 
 void Obstacles::update(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, Eigen::Vector2f goal)
 {
   goal_ = goal;
   occ_ = Eigen::MatrixXi::Zero(grid_x_, grid_y_);
-  grid_rep_ = Eigen::MatrixXf::Zero(grid_x_, grid_y_);
 
   // Create an occupancy grid when enough points are in a cell
   for (const auto & point : cloud->points) {
@@ -83,4 +94,7 @@ void Obstacles::update(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, Eigen::Ve
   }
 }
 
-Eigen::Vector2f Obstacles::compute_vector() {}
+Eigen::Vector2f Obstacles::compute_vector()
+{
+  return compute_attractive_vector() - compute_repulsive_vector();
+}
