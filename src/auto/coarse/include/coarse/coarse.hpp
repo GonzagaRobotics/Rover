@@ -19,6 +19,7 @@
 using json = nlohmann::json;
 
 using EmptyMsg = std_msgs::msg::Empty;
+using StateMsg = auto_msgs::msg::State;
 using FixMsg = sensor_msgs::msg::NavSatFix;
 using LocMsg = auto_msgs::msg::Location;
 
@@ -38,9 +39,6 @@ private:
   std::shared_ptr<GoalHandleGoTo> goto_goal_handle_;
   std::shared_ptr<GoalHandlePathfind> pathfind_goal_handle_;
 
-  /// @brief Needed to cancel the running action from the Control System
-  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr goto_stop_sub_;
-
   rclcpp::Subscription<FixMsg>::SharedPtr fix_sub_;
   rclcpp::Publisher<LocMsg>::SharedPtr fine_goal_pub_;
   rclcpp::Publisher<EmptyMsg>::SharedPtr fine_stop_pub_;
@@ -51,7 +49,6 @@ private:
   rclcpp::TimerBase::SharedPtr goto_check_timer_;
 
   void fix_cb(const FixMsg::SharedPtr msg);
-  void stop_cb(const EmptyMsg::SharedPtr);
 
   rclcpp_action::GoalResponse goto_goal_cb(
     const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const GoTo::Goal> goal);

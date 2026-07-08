@@ -13,24 +13,6 @@ void CoarseNode::fix_cb(const FixMsg::SharedPtr msg)
 
   location_->latitude = msg->latitude;
   location_->longitude = msg->longitude;
-  location_->altitude = msg->altitude;
-}
-
-void CoarseNode::stop_cb(const EmptyMsg::SharedPtr)
-{
-  if (goto_goal_handle_) {
-    RCLCPP_INFO(get_logger(), "Stopping goto goal");
-    goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
-    goto_goal_handle_.reset();
-  }
-
-  if (pathfind_goal_handle_) {
-    RCLCPP_INFO(get_logger(), "Stopping pathfind goal");
-    pathfind_client_->async_cancel_goal(pathfind_goal_handle_);
-    pathfind_goal_handle_.reset();
-  }
-
-  fine_stop_pub_->publish(EmptyMsg());
 }
 
 rclcpp_action::GoalResponse CoarseNode::goto_goal_cb(
@@ -62,7 +44,9 @@ void CoarseNode::goto_accepted_cb(const std::shared_ptr<GoalHandleGoTo> goal_han
 {
   // Abort any existing goal
   if (goto_goal_handle_ && goto_goal_handle_->is_executing()) {
-    goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
+    auto res_msg = std::make_shared<GoTo::Result>();
+    res_msg->state.state = StateMsg::FAILURE;
+    goto_goal_handle_->abort(res_msg);
   }
 
   goto_goal_handle_ = goal_handle;
@@ -70,7 +54,11 @@ void CoarseNode::goto_accepted_cb(const std::shared_ptr<GoalHandleGoTo> goal_han
 
   if (!pathfind_client_->wait_for_action_server(std::chrono::seconds(1))) {
     RCLCPP_ERROR(get_logger(), "Pathfind action server not available");
-    goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
+
+    auto res_msg = std::make_shared<GoTo::Result>();
+    res_msg->state.state = StateMsg::FAILURE;
+    goto_goal_handle_->abort(res_msg);
+
     goto_goal_handle_.reset();
     target_.reset();
 
@@ -104,9 +92,8 @@ void CoarseNode::pathfind_goal_res_cb(const GoalHandlePathfind::SharedPtr & goal
 
   RCLCPP_INFO(get_logger(), "Pathfind goal accepted");
 
-  json feedback = {{"type", "pathfinding"}};
   auto feedback_msg = std::make_shared<GoTo::Feedback>();
-  feedback_msg->status = feedback.dump();
+  feedback_msg->state.state = StateMsg::PLANNING;
   goto_goal_handle_->publish_feedback(feedback_msg);
 
   pathfind_goal_handle_ = goal_handle;
@@ -117,7 +104,11 @@ void CoarseNode::pathfind_res_cb(const GoalHandlePathfind::WrappedResult & resul
   if (result.code == rclcpp_action::ResultCode::ABORTED) {
     if (pathfind_goal_handle_ && result.goal_id == pathfind_goal_handle_->get_goal_id()) {
       RCLCPP_ERROR(get_logger(), "Pathfind goal aborted");
-      goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
+
+      auto res_msg = std::make_shared<GoTo::Result>();
+      res_msg->state.state = StateMsg::FAILURE;
+      goto_goal_handle_->abort(res_msg);
+
       goto_goal_handle_.reset();
       target_.reset();
       pathfind_goal_handle_.reset();
@@ -129,7 +120,11 @@ void CoarseNode::pathfind_res_cb(const GoalHandlePathfind::WrappedResult & resul
       // This should not happen, but would cause a failure if it did
       RCLCPP_ERROR(
         get_logger(), "Pathfind goal canceled while handle still exists. This should not happen.");
-      goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
+
+      auto res_msg = std::make_shared<GoTo::Result>();
+      res_msg->state.state = StateMsg::FAILURE;
+      goto_goal_handle_->abort(res_msg);
+
       goto_goal_handle_.reset();
     }
 
@@ -141,7 +136,6 @@ void CoarseNode::pathfind_res_cb(const GoalHandlePathfind::WrappedResult & resul
     result.result->plan.waypoints.size());
 
   json feedback;
-  feedback["type"] = "pathfind_complete";
   feedback["wp"] = json::array();
   for (const auto & wp : result.result->plan.waypoints) {
     json wp_json = {wp.latitude, wp.longitude};
@@ -149,6 +143,7 @@ void CoarseNode::pathfind_res_cb(const GoalHandlePathfind::WrappedResult & resul
   }
 
   auto feedback_msg = std::make_shared<GoTo::Feedback>();
+  feedback_msg->state.state = StateMsg::PLANNING;
   feedback_msg->status = feedback.dump();
   goto_goal_handle_->publish_feedback(feedback_msg);
 
@@ -164,7 +159,9 @@ void CoarseNode::goto_check()
   }
 
   if (goto_goal_handle_->is_canceling()) {
-    goto_goal_handle_->canceled(std::make_shared<GoTo::Result>());
+    auto res_msg = std::make_shared<GoTo::Result>();
+    res_msg->state.state = StateMsg::FAILURE;
+    goto_goal_handle_->canceled(res_msg);
     goto_goal_handle_.reset();
 
     if (pathfind_goal_handle_) {
@@ -186,7 +183,10 @@ void CoarseNode::goto_step()
 {
   if (plan_->waypoints.empty()) {
     RCLCPP_ERROR(get_logger(), "Plan is empty. Cannot proceed.");
-    goto_goal_handle_->abort(std::make_shared<GoTo::Result>());
+    auto res_msg = std::make_shared<GoTo::Result>();
+    res_msg->state.state = StateMsg::FAILURE;
+    goto_goal_handle_->abort(res_msg);
+
     goto_goal_handle_.reset();
     fine_stop_pub_->publish(EmptyMsg());
     return;
@@ -204,8 +204,9 @@ void CoarseNode::goto_step()
     }
 
     fine_goal_pub_->publish(plan_->waypoints[wp_index_]);
-    json feedback = {{"type", "traveling"}, {"wp", wp_index_}};
+    json feedback = {{"wp", wp_index_}};
     auto feedback_msg = std::make_shared<GoTo::Feedback>();
+    feedback_msg->state.state = StateMsg::TRAVELING;
     feedback_msg->status = feedback.dump();
     goto_goal_handle_->publish_feedback(feedback_msg);
 
@@ -226,7 +227,9 @@ void CoarseNode::goto_step()
     }
   }
 
-  goto_goal_handle_->succeed(std::make_shared<GoTo::Result>());
+  auto res_msg = std::make_shared<GoTo::Result>();
+  res_msg->state.state = StateMsg::SUCCESS;
+  goto_goal_handle_->succeed(res_msg);
   goto_goal_handle_.reset();
   fine_stop_pub_->publish(EmptyMsg());
 }
@@ -236,7 +239,6 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
   using namespace std::placeholders;
 
   fix_sub_ = this->create_subscription<FixMsg>("/fix", 10, BIND(fix_cb));
-  goto_stop_sub_ = this->create_subscription<EmptyMsg>("goto_stop", 10, BIND(stop_cb));
   fine_goal_pub_ = this->create_publisher<LocMsg>("fine_goal", 10);
   fine_stop_pub_ = this->create_publisher<EmptyMsg>("fine_stop", 10);
 
