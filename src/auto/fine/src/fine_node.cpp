@@ -12,7 +12,6 @@ void FineNode::fix_cb(const sensor_msgs::msg::NavSatFix::SharedPtr msg)
 
   location_->latitude = msg->latitude;
   location_->longitude = msg->longitude;
-  location_->altitude = msg->altitude;
 }
 
 void FineNode::imu_cb(const sensor_msgs::msg::Imu::SharedPtr msg) {}
@@ -25,7 +24,6 @@ void FineNode::goal_cb(const auto_msgs::msg::Location::SharedPtr msg)
 
   goal_location_->latitude = msg->latitude;
   goal_location_->longitude = msg->longitude;
-  goal_location_->altitude = msg->altitude;
 }
 
 void FineNode::stop_cb(const std_msgs::msg::Empty::SharedPtr) { goal_location_.reset(); }
