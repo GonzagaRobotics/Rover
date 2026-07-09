@@ -16,7 +16,6 @@
   <depend>rclcpp_action</depend>
   <depend>auto_msgs</depend>
   <depend>sensor_msgs</depend>
-  <depend>pathfinder</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
