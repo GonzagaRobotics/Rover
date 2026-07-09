@@ -6,12 +6,12 @@ from rclpy.node import Node, SetParametersResult
 from rclpy.parameter import Parameter
 from sensor_msgs.msg import Image, CameraInfo
 
-CAP_FOURCC = "MJPG"
-CAP_FPS = 30
+CAP_FOURCC = "YUY2"
+CAP_FPS = 10
 CAP_WIDTH = 1280
 CAP_HEIGHT = 720
 
-SEND_FPS = 15
+SEND_FPS = 10
 
 
 class Vision(Node):
@@ -28,7 +28,7 @@ class Vision(Node):
 
         self.add_on_set_parameters_callback(self.set_params_cb)
 
-        self._cap = cv.VideoCapture(cam_id)
+        self._cap = cv.VideoCapture(cam_id, cv.CAP_V4L2)
         self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*CAP_FOURCC))
         self._cap.set(cv.CAP_PROP_FRAME_WIDTH, CAP_WIDTH)
         self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, CAP_HEIGHT)
@@ -101,7 +101,7 @@ class Vision(Node):
 
         self._frame = None
 
-    def _undistort_image(self, img: cv.Mat) -> cv.Mat:
+    def _undistort_image(self, img: np.ndarray) -> np.ndarray:
         h,  w = img.shape[:2]
         newcameramtx, roi = cv.getOptimalNewCameraMatrix(self._cam_mtx, self._dist_coeffs, (w, h), 1, (w, h))
 

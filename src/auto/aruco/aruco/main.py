@@ -1,17 +1,16 @@
 import numpy as np
 import cv2 as cv
-from ament_index_python import get_package_share_directory
 import rclpy
 from rclpy.node import Node, Parameter, SetParametersResult
 from sensor_msgs.msg import Image, RegionOfInterest, CameraInfo
 from geometry_msgs.msg import Point, Vector3
 from visualization_msgs.msg import Marker, MarkerArray
-from nav_interfaces.msg import Aruco as ArucoMsg
+from auto_msgs.msg import Aruco as ArucoMsg
 
 
 class Aruco(Node):
     def __init__(self):
-        super().__init__("aruco")
+        super().__init__("aruco_node")
 
         self._ready = False
 
