@@ -4,20 +4,14 @@
 
 CMD="colcon build --symlink-install"
 
-case "$1" in
+case "$*" in
     "" )
         ;;
     * )
-        CMD="$CMD --packages-up-to $1"
+        CMD="$CMD --packages-up-to $*"
         ;;
 esac
 
-case "$2" in
-    "" )
-        ;;
-    * )
-        CMD="$CMD --cmake-args -DCMAKE_BUILD_TYPE=$2"
-        ;;
-esac
+CMD="$CMD --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 $CMD
