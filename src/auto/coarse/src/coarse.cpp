@@ -24,6 +24,15 @@ rclcpp_action::GoalResponse CoarseNode::goto_goal_cb(
   }
 
   target_ = std::make_shared<auto_msgs::msg::Target>(goal->target);
+
+  if (
+    target_->type != auto_msgs::msg::Target::TYPE_GNSS &&
+    target_->type != auto_msgs::msg::Target::TYPE_ARUCO &&
+    target_->type != auto_msgs::msg::Target::TYPE_OBJECT) {
+    RCLCPP_WARN(get_logger(), "Invalid target type %d, rejecting goto goal", target_->type);
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+
   plan_.reset();
   auto uuid_str = rclcpp_action::to_string(uuid);
   RCLCPP_INFO(get_logger(), "Accepting goto goal %s", uuid_str.c_str());
