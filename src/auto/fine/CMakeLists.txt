@@ -5,6 +5,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# Ignore CMP0074 warning. Happens with PCL
+cmake_policy(SET CMP0074 NEW)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -38,11 +41,11 @@ include_directories(${PCL_INCLUDE_DIRS})
 add_executable(fine src/main.cpp src/fine_node.cpp src/pgr.cpp src/obstacles.cpp)
 target_link_libraries(fine 
   rclcpp::rclcpp 
-  std_msgs::std_msgs 
-  sensor_msgs::sensor_msgs 
-  nav_msgs::nav_msgs 
+  ${std_msgs_TARGETS}
+  ${sensor_msgs_TARGETS} 
+  ${nav_msgs_TARGETS} 
   ${auto_msgs_TARGETS}
-  visualization_msgs::visualization_msgs
+  ${visualization_msgs_TARGETS}
   ${PCL_LIBRARIES} 
   Eigen3::Eigen 
   tf2_ros::tf2_ros)
