@@ -4,6 +4,7 @@
 #include <functional>
 #include <rclcpp/rclcpp.hpp>
 
+#include "auto_msgs/msg/aruco.hpp"
 #include "auto_msgs/msg/location.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
@@ -31,6 +32,7 @@ using FixMsg = sensor_msgs::msg::NavSatFix;
 using PclMsg = sensor_msgs::msg::PointCloud2;
 using EmptyMsg = std_msgs::msg::Empty;
 using LocMsg = auto_msgs::msg::Location;
+using ArucoMsg = auto_msgs::msg::Aruco;
 
 class FineNode : public rclcpp::Node
 {
@@ -51,6 +53,8 @@ private:
   rclcpp::Subscription<FixMsg>::SharedPtr fix_sub_;
   rclcpp::Subscription<ImuMsg>::SharedPtr imu_sub_;
 
+  rclcpp::Subscription<ArucoMsg>::SharedPtr aruco_sub_;
+
   rclcpp::Subscription<EmptyMsg>::SharedPtr stop_sub_;
   rclcpp::Subscription<LocMsg>::SharedPtr goal_sub_;
 
@@ -62,6 +66,8 @@ private:
   void fix_cb(const FixMsg::SharedPtr msg);
   void imu_cb(const ImuMsg::SharedPtr msg);
   void pcl_cb(const PclMsg::SharedPtr msg);
+
+  void aruco_cb(const ArucoMsg::SharedPtr msg);
 
   void goal_cb(const LocMsg::SharedPtr msg);
   void stop_cb(const EmptyMsg::SharedPtr);

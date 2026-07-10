@@ -81,6 +81,12 @@ void FineNode::pcl_cb(const PclMsg::SharedPtr msg)
   grid_pub_->publish(grid_msg);
 }
 
+void FineNode::aruco_cb(const ArucoMsg::SharedPtr msg) { 
+  auto num_markers = msg->ids.size(); 
+
+  
+}
+
 void FineNode::goal_cb(const auto_msgs::msg::Location::SharedPtr msg)
 {
   if (!goal_location_) {
