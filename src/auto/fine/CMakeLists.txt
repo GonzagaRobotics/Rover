@@ -41,7 +41,7 @@ target_link_libraries(fine
   std_msgs::std_msgs 
   sensor_msgs::sensor_msgs 
   nav_msgs::nav_msgs 
-  auto_msgs::auto_msgs 
+  ${auto_msgs_TARGETS}
   visualization_msgs::visualization_msgs
   ${PCL_LIBRARIES} 
   Eigen3::Eigen 

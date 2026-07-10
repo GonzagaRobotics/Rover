@@ -26,7 +26,7 @@ endif()
 include_directories(include/coarse include/json)
 
 add_executable(coarse src/main.cpp src/coarse.cpp src/utils.cpp)
-target_link_libraries(coarse rclcpp::rclcpp rclcpp_action::rclcpp_action auto_msgs::auto_msgs)
+target_link_libraries(coarse rclcpp::rclcpp rclcpp_action::rclcpp_action ${auto_msgs_TARGETS})
 
 install(TARGETS coarse DESTINATION lib/${PROJECT_NAME})
 ament_package()
