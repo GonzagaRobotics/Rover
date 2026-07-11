@@ -9,7 +9,8 @@
                 "/opt/ros/humble/include/**",
                 "/home/damon/robotics/Rover/src/interfaces/include/**",
                 "/usr/include/**",
-                "${workspaceFolder}/install/**/**"
+                "${workspaceFolder}/install/**/**",
+                "${workspaceFolder}/**"
             ],
             "name": "ROS",
             "intelliSenseMode": "gcc-x64",

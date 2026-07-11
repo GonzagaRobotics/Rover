@@ -1,0 +1,9 @@
+Target target
+---
+State state
+# JSON format
+string result "{}"
+---
+State state
+# JSON format
+string status "{}"

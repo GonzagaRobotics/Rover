@@ -1,5 +1,4 @@
-# All in decimal degrees and meters. Value of NaN for altitude indicates unknown
+# All in decimal degrees
 
 float64 latitude
 float64 longitude
-float64 altitude

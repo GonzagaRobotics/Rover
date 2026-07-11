@@ -2,11 +2,16 @@
 
 # Use inside the first level of the Rover directory
 
-case "$1" in
+CMD="colcon build --symlink-install"
+
+case "$*" in
     "" )
-        colcon build --symlink-install
         ;;
     * )
-        colcon build --symlink-install --packages-up-to $*
+        CMD="$CMD --packages-up-to $*"
         ;;
 esac
+
+CMD="$CMD --cmake-args -DCMAKE_BUILD_TYPE=Release"
+
+$CMD

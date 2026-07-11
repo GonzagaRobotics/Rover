@@ -6,13 +6,17 @@ from rclpy.node import Node, SetParametersResult
 from rclpy.parameter import Parameter
 from sensor_msgs.msg import Image, CameraInfo
 
-CAP_FPS = 30
-SEND_FPS = 15
+CAP_FOURCC = "YUY2"
+CAP_FPS = 10
+CAP_WIDTH = 1280
+CAP_HEIGHT = 720
+
+SEND_FPS = 10
 
 
 class Vision(Node):
     def __init__(self):
-        super().__init__("vision")
+        super().__init__("vision_node")
 
         self._frame = None
         self._frame_stamp = None
@@ -24,10 +28,10 @@ class Vision(Node):
 
         self.add_on_set_parameters_callback(self.set_params_cb)
 
-        self._cap = cv.VideoCapture(cam_id)
-        self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*'MJPG'))
-        self._cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
-        self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
+        self._cap = cv.VideoCapture(cam_id, cv.CAP_V4L2)
+        self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*CAP_FOURCC))
+        self._cap.set(cv.CAP_PROP_FRAME_WIDTH, CAP_WIDTH)
+        self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, CAP_HEIGHT)
         self._cap.set(cv.CAP_PROP_FPS, CAP_FPS)
 
         self._raw_pub = self.create_publisher(Image, "/vision/main/image_raw", 10)
@@ -70,7 +74,7 @@ class Vision(Node):
 
         msg = Image()
         msg.header.stamp = self._frame_stamp
-        msg.header.frame_id = "camera"
+        msg.header.frame_id = f"camera_{self._cam_name}" if self._cam_name != "" else "generic"
         msg.height = self._frame.shape[0]
         msg.width = self._frame.shape[1]
         msg.encoding = "bgr8"
@@ -80,13 +84,13 @@ class Vision(Node):
         if self._cam_name == "":
             self._frame = None
             return
-        
+
         self._publish_camera_info()
 
         img = self._undistort_image(self._frame)
         msg = Image()
         msg.header.stamp = self._frame_stamp
-        msg.header.frame_id = "camera"
+        msg.header.frame_id = f"camera_{self._cam_name}" if self._cam_name != "" else "generic"
         msg.height = img.shape[0]
         msg.width = img.shape[1]
         msg.encoding = "bgr8"
@@ -97,7 +101,7 @@ class Vision(Node):
 
         self._frame = None
 
-    def _undistort_image(self, img: cv.Mat) -> cv.Mat:
+    def _undistort_image(self, img: np.ndarray) -> np.ndarray:
         h,  w = img.shape[:2]
         newcameramtx, roi = cv.getOptimalNewCameraMatrix(self._cam_mtx, self._dist_coeffs, (w, h), 1, (w, h))
 
@@ -112,7 +116,7 @@ class Vision(Node):
     def _publish_camera_info(self):
         msg = CameraInfo()
         msg.header.stamp = self._frame_stamp
-        msg.header.frame_id = "camera"
+        msg.header.frame_id = f"camera_{self._cam_name}" if self._cam_name != "" else "generic"
         msg.width = self._frame.shape[1]
         msg.height = self._frame.shape[0]
         msg.distortion_model = "plumb_bob"
