@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(auto_msgs REQUIRED)
@@ -40,6 +41,7 @@ add_executable(pathfinder
 target_link_libraries(pathfinder PUBLIC
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
+  ament_index_cpp::ament_index_cpp
   ${std_msgs_TARGETS}
   ${sensor_msgs_TARGETS}
   ${auto_msgs_TARGETS}
