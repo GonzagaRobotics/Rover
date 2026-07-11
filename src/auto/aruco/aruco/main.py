@@ -105,10 +105,6 @@ class ArucoNode(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
 
         for i in range(len(corners)):
-            # Reject markers that are not in the range of expected IDs (0-3)
-            if ids[i][0] != 0:
-                continue
-
             image_points = corners[i].reshape(-1, 2).astype(np.float32)
             solve_ok, _, t = cv2.solvePnP(self._detector.object_points, image_points, self._cam_mtx, self._dist_coeffs, flags=cv2.SOLVEPNP_P3P)
 
