@@ -7,6 +7,8 @@ from geometry_msgs.msg import Point, Vector3
 from visualization_msgs.msg import Marker, MarkerArray
 from auto_msgs.msg import Aruco as ArucoMsg
 
+DETECT_RATE = 5  # Hz
+
 
 class ArucoDetector:
     def __init__(self, marker_size: float):
@@ -57,6 +59,7 @@ class ArucoNode(Node):
         self._ready = False
 
         marker_size = self.declare_parameter("marker_size", 0.15).value
+        self._active = self.declare_parameter("active", False).value
 
         self._last_img = None
         self._detector = ArucoDetector(marker_size)
@@ -69,7 +72,8 @@ class ArucoNode(Node):
 
         self.add_on_set_parameters_callback(self.param_cb)
 
-        self.create_timer(1.0 / 5, self.detect)
+        self._detect_timer = None
+        self._set_timer()
 
     def param_cb(self, params: list[Parameter]):
         for param in params:
@@ -78,6 +82,11 @@ class ArucoNode(Node):
                     return SetParametersResult(successful=False, reason="Marker size must be > 0.")
 
                 self._detector.set_marker_size(param.value)
+                return SetParametersResult(successful=True)
+            if param.name == "active":
+                self._active = param.value
+                self.get_logger().info(f"Detection {'enabled' if self._active else 'disabled'}.")
+                self._set_timer()
                 return SetParametersResult(successful=True)
 
     def cam_cb(self, msg: Image | CameraInfo):
@@ -106,7 +115,8 @@ class ArucoNode(Node):
 
         for i in range(len(corners)):
             image_points = corners[i].reshape(-1, 2).astype(np.float32)
-            solve_ok, _, t = cv2.solvePnP(self._detector.object_points, image_points, self._cam_mtx, self._dist_coeffs, flags=cv2.SOLVEPNP_P3P)
+            solve_ok, _, t = cv2.solvePnP(self._detector.object_points, image_points,
+                                          self._cam_mtx, self._dist_coeffs, flags=cv2.SOLVEPNP_P3P)
 
             if not solve_ok:
                 self.get_logger().warn(f"Failed to solve PnP for marker {ids[i][0]}.")
@@ -141,6 +151,13 @@ class ArucoNode(Node):
         self._aruco_pub.publish(msg)
 
         self._last_img = None
+
+    def _set_timer(self):
+        if self._active and self._detect_timer is None:
+            self._detect_timer = self.create_timer(1.0 / DETECT_RATE, self.detect)
+        elif not self._active and self._detect_timer is not None:
+            self.destroy_timer(self._detect_timer)
+            self._detect_timer = None
 
 
 def main(args=None):
