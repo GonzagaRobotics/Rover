@@ -10,10 +10,21 @@ from auto_msgs.msg import Aruco as ArucoMsg
 
 class ArucoDetector:
     def __init__(self, marker_size: float):
-        self.params = cv2.aruco.DetectorParameters_create()
-        self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+        try:
+            params = cv2.aruco.DetectorParameters()
+            params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
-        self.ar_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
+            ar_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+            self._detector = cv2.aruco.ArucoDetector(ar_dict, params)
+
+            self._legacy = False
+        except ImportError:
+            self._legacy = True
+
+            self.params = cv2.aruco.DetectorParameters_create()
+            self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+
+            self.ar_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
 
         self.object_points = self._object_points(marker_size)
 
@@ -21,7 +32,10 @@ class ArucoDetector:
         self.object_points = self._object_points(marker_size)
 
     def detect(self, img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        corners, ids, _ = cv2.aruco.detectMarkers(img, self.ar_dict, parameters=self.params)
+        if self._legacy:
+            corners, ids, _ = cv2.aruco.detectMarkers(img, self.ar_dict, parameters=self.params)
+        else:
+            corners, ids, _ = self._detector.detectMarkers(img)
 
         return corners, ids
 
@@ -50,7 +64,7 @@ class ArucoNode(Node):
         self._viz_pub = self.create_publisher(MarkerArray, 'aruco/viz', 10)
         self._aruco_pub = self.create_publisher(ArucoMsg, "aruco/detect", 10)
 
-        self.create_subscription(Image, "/vision/main/image_rect_color", self.cam_cb, 1)
+        self.create_subscription(Image, "/vision/main/image_raw", self.cam_cb, 1)
         self.create_subscription(CameraInfo, "/vision/main/camera_info", self.cam_cb, 1)
 
         self.add_on_set_parameters_callback(self.param_cb)
@@ -92,11 +106,15 @@ class ArucoNode(Node):
 
         for i in range(len(corners)):
             # Reject markers that are not in the range of expected IDs (0-3)
-            if ids[i][0] > 3:
+            if ids[i][0] != 0:
                 continue
 
             image_points = corners[i].reshape(-1, 2).astype(np.float32)
-            _, _, t = cv2.solvePnP(self._detector.object_points, image_points, self._cam_mtx, self._dist_coeffs)
+            solve_ok, _, t = cv2.solvePnP(self._detector.object_points, image_points, self._cam_mtx, self._dist_coeffs, flags=cv2.SOLVEPNP_P3P)
+
+            if not solve_ok:
+                self.get_logger().warn(f"Failed to solve PnP for marker {ids[i][0]}.")
+                continue
 
             roi = RegionOfInterest()
             roi.x_offset = int(image_points[:, 0].min())
