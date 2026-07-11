@@ -15,6 +15,30 @@ void CoarseNode::fix_cb(const FixMsg::SharedPtr msg)
   location_->longitude = msg->longitude;
 }
 
+void CoarseNode::aruco_cb(const ArucoMsg::SharedPtr msg)
+{
+  auto n_markers = msg->ids.size();
+
+  // We might see two markers at a time, as well as false positives.
+  // For now, just use the first marker we see matching the target ID, if any.
+  size_t target_index = -1;
+
+  for (size_t i = 0; i < n_markers; i++) {
+    if (msg->ids[i] == target_->id) {
+      target_index = i;
+      break;
+    }
+  }
+
+  if (target_index == -1) {
+    return;
+  }
+
+  auto translation = msg->translations[target_index];
+
+  // TODO: Convert frames and publish fine goal
+}
+
 rclcpp_action::GoalResponse CoarseNode::goto_goal_cb(
   const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const GoTo::Goal> goal)
 {
@@ -248,6 +272,8 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
   using namespace std::placeholders;
 
   fix_sub_ = this->create_subscription<FixMsg>("/fix", 10, BIND(fix_cb));
+  aruco_sub_ = this->create_subscription<ArucoMsg>("aruco/detect", 10, BIND(aruco_cb));
+
   fine_goal_pub_ = this->create_publisher<LocMsg>("fine_goal", 10);
   fine_stop_pub_ = this->create_publisher<EmptyMsg>("fine_stop", 10);
 
