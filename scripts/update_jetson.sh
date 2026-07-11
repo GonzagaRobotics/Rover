@@ -6,4 +6,4 @@ rsync -r --delete --delete-excluded \
   --exclude=build \
   --exclude=install \
   --exclude=log \
-  ../Rover robotics@192.168.0.1:~/
+  ../Rover jetson@10.0.0.1:~/
