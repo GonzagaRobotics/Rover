@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.8)
 project(webrtc_src)
 
+# Build libdatachannel first
+set(NO_EXAMPLES TRUE CACHE BOOL "Disable examples" FORCE)
+set(NO_TESTS TRUE CACHE BOOL "Disable tests" FORCE)
+add_subdirectory(libdatachannel)
+
+# FFMPEG for video encoding
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavutil libswscale)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -22,10 +31,10 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-include_directories(include/webrtc_src)
+include_directories(include/webrtc_src include/json)
   
 add_executable(webrtc_src src/main.cpp src/webrtc_node.cpp)
-target_link_libraries(webrtc_src rclcpp::rclcpp ${sensor_msgs_TARGETS})
+target_link_libraries(webrtc_src LibDataChannel::LibDataChannel rclcpp::rclcpp ${sensor_msgs_TARGETS} PkgConfig::FFMPEG)
 
 install(TARGETS webrtc_src DESTINATION lib/${PROJECT_NAME})
 ament_package()
