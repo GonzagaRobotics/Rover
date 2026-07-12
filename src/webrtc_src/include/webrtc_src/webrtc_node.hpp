@@ -36,7 +36,6 @@ private:
   // PeerConnection is owned by rtc_thread_ and cannot be touched by others
   rtc::PeerConnection pc_;
   std::shared_ptr<rtc::Track> track_;
-  std::shared_ptr<rtc::H264RtpPacketizer> packetizer_;
   std::string signal_data_;
 
   AVCodec * codec_;

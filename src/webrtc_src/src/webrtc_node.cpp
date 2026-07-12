@@ -49,11 +49,9 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
   std::lock_guard<std::mutex> lock(rtc_mutex_);
 
   // FFMPEG may not be initialized yet, so we need to check
-  if (!frame_yuv_) {
+  if (!sws_ctx_) {
     return;
   }
-
-  auto start = std::chrono::high_resolution_clock::now();
 
   if (
     msg->encoding != "bgr8" || msg->width != (uint32_t)codec_ctx_->width ||
@@ -82,65 +80,6 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
 
   frame_yuv_->pts = msg->header.stamp.sec * 1000000 + msg->header.stamp.nanosec / 1000;
 
-  // Create a black screen with a white line moving across the screen
-  // for (int y = 0; y < 360; y++) {
-  //   for (int x = 0; x < 640; x++) {
-  //     if (x == (frame_->pts % 640)) {
-  //       frame_->data[0][y * frame_->linesize[0] + x] = 255;  // Y
-  //     } else {
-  //       frame_->data[0][y * frame_->linesize[0] + x] = 0;  // Y
-  //     }
-  //     //   frame_->data[0][y * frame_->linesize[0] + x] = 255;  // Y
-  //   }
-  // }
-  // for (int y = 0; y < 360 / 2; y++) {
-  //   for (int x = 0; x < 640 / 2; x++) {
-  //     frame_->data[1][y * frame_->linesize[1] + x] = 128;  // U
-  //     frame_->data[2][y * frame_->linesize[2] + x] = 128;  // V
-  //   }
-  // }
-
-  // for (int y = 0; y < 360; y++) {
-  //   for (int x = 0; x < 640; x++) {
-  //     frame_->data[0][y * frame_->linesize[0] + x] = x + y + frame_->pts * 3;  // Y
-  //   }
-  // }
-  // for (int y = 0; y < 360 / 2; y++) {
-  //   for (int x = 0; x < 640 / 2; x++) {
-  //     frame_->data[1][y * frame_->linesize[1] + x] = 128 + y + frame_->pts * 2;  // U
-  //     frame_->data[2][y * frame_->linesize[2] + x] = 64 + x + frame_->pts * 5;   // V
-  //   }
-  // }
-
-  // Convert BGR to YUV420P
-  //   const uint8_t * bgr_data = msg->data.data();
-  //   frame_->data[0] = const_cast<uint8_t *>(msg->data.data());
-  //   if (
-  //     av_image_alloc(
-  //       frame_->data, frame_->linesize, codec_ctx_->width, codec_ctx_->height, AV_PIX_FMT_YUV420P,
-  //       1) < 0) {
-  //     RCLCPP_ERROR(this->get_logger(), "Could not allocate image");
-  //     return;
-  //   }
-
-  //   frame_->data[0] = const_cast<uint8_t *>(bgr_data);
-
-  // if (
-  //   av_image_fill_arrays(
-  //     frame_->data, frame_->linesize, bgr_data, AV_PIX_FMT_BGR24, codec_ctx_->width,
-  //     codec_ctx_->height, 1) < 0) {
-  //   RCLCPP_ERROR(this->get_logger(), "Could not fill image arrays");
-  //   return;
-  // }
-
-  //   if (
-  //     sws_scale(
-  //       sws_ctx_, frame_->data, frame_->linesize, 0, codec_ctx_->height, frame_->data,
-  //       frame_->linesize) < 0) {
-  //     RCLCPP_ERROR(this->get_logger(), "Could not convert image");
-  //     return;
-  //   }
-
   if (pli_) {
     create_codec();
     pli_ = false;
@@ -162,34 +101,13 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
       return;
     }
 
-    // std::cout << "Packet flags: " << packet_->flags << std::endl;
-
-    // Send the encoded packet over the data channel
-    // std::lock_guard<std::mutex> lock(rtc_mutex_);
-
     if (pc_.state() == rtc::PeerConnection::State::Connected) {
-      //   rtc::FrameInfo info(frame_->pts * 100);
-
       rtc::FrameInfo info(frame_yuv_->pts);
       track_->sendFrame(reinterpret_cast<const std::byte *>(packet_->data), packet_->size, info);
-      // track_->send(reinterpret_cast<const std::byte *>(packet_->data), packet_->size);
-
-      //   std::cout << frame_->pts << " Sent encoded frame of size: " << packet_->size << std::endl;
     }
 
     av_packet_unref(packet_);
   }
-
-  // if (frame_yuv_->pict_type == AV_PICTURE_TYPE_I) {
-  //   // std::cout << "Sent I-frame" << std::endl;
-  //   frame_yuv_->pict_type = AV_PICTURE_TYPE_NONE;
-  //   frame_yuv_->key_frame = 0;
-  //   pli_ = false;
-  // }
-
-  auto end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double, std::milli> elapsed = end - start;
-  // std::cout << "Processed image in " << elapsed.count() << " ms" << std::endl;
 }
 
 void WebRTCNode::rtc_worker()
@@ -223,45 +141,17 @@ void WebRTCNode::rtc_worker()
 
   auto rtp_config = std::make_shared<rtc::RtpPacketizationConfig>(
     1, "video_send", 102, rtc::H264RtpPacketizer::ClockRate);
-  packetizer_ = std::make_shared<rtc::H264RtpPacketizer>(
+  auto packetizer_ = std::make_shared<rtc::H264RtpPacketizer>(
     rtc::H264RtpPacketizer::Separator::StartSequence, rtp_config);
   auto sr_report = std::make_shared<rtc::RtcpSrReporter>(rtp_config);
   packetizer_->addToChain(sr_report);
   auto nack_response = std::make_shared<rtc::RtcpNackResponder>();
   packetizer_->addToChain(nack_response);
-  auto pli_handler = std::make_shared<rtc::PliHandler>([this]() {
-    // std::lock_guard<std::mutex> lock(rtc_mutex_);
-    std::cout << "Received PLI " << std::endl;
-    // frame_yuv_->pict_type = AV_PICTURE_TYPE_I;
-    // frame_yuv_->key_frame = 1;
-    pli_ = true;
-  });
+  auto pli_handler = std::make_shared<rtc::PliHandler>([this]() { pli_ = true; });
   packetizer_->addToChain(pli_handler);
+
   track->setMediaHandler(packetizer_);
-
   track_ = track;
-
-  // track_->onMessage([](rtc::message_variant data) {
-  //   //  abbrev.  name                 value
-  //   //  SR       sender report          200
-  //   //  RR       receiver report        201
-  //   //  SDES     source description     202
-  //   //  BYE      goodbye                203
-  //   //  APP      application-defined    204
-  //   if (std::holds_alternative<rtc::binary>(data)) {
-  //     auto binary_data = std::get<rtc::binary>(data);
-  //     std::cout << "Received binary data of size: " << binary_data.size();
-  //     // hex dump
-  //     std::cout << " Data: ";
-  //     for (size_t i = 0; i < binary_data.size(); i++) {
-  //       std::cout << std::hex << (int)binary_data[i] << " ";
-  //     }
-  //     std::cout << std::dec << std::endl;
-  //   } else if (std::holds_alternative<std::string>(data)) {
-  //     auto string_data = std::get<std::string>(data);
-  //     std::cout << "Received string data: " << string_data << std::endl;
-  //   }
-  // });
 
   pc_.setLocalDescription();
 
