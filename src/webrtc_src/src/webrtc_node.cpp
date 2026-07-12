@@ -30,12 +30,10 @@ void WebRTCNode::create_codec()
 void WebRTCNode::signal_cb(const StringMsg::SharedPtr msg)
 {
   if (msg->data.empty()) {
-    std::cout << "Received empty signal" << std::endl;
     return;
   }
 
   std::lock_guard<std::mutex> lock(rtc_mutex_);
-  std::cout << "Received signal: " << msg->data << std::endl;
 
   if (!signal_data_.empty()) {
     std::cout << "Warning: Overwriting existing signal data" << std::endl;
@@ -46,8 +44,6 @@ void WebRTCNode::signal_cb(const StringMsg::SharedPtr msg)
 
 void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
 {
-  std::lock_guard<std::mutex> lock(rtc_mutex_);
-
   // FFMPEG may not be initialized yet, so we need to check
   if (!sws_ctx_) {
     return;
@@ -80,9 +76,9 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
 
   frame_yuv_->pts = msg->header.stamp.sec * 1000000 + msg->header.stamp.nanosec / 1000;
 
-  if (pli_) {
+  if (got_pli_) {
     create_codec();
-    pli_ = false;
+    got_pli_ = false;
   }
 
   // Encode the frame
@@ -101,9 +97,13 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
       return;
     }
 
-    if (pc_.state() == rtc::PeerConnection::State::Connected) {
-      rtc::FrameInfo info(frame_yuv_->pts);
-      track_->sendFrame(reinterpret_cast<const std::byte *>(packet_->data), packet_->size, info);
+    {
+      std::lock_guard<std::mutex> lock(rtc_mutex_);
+
+      if (track_ && pc_.state() == rtc::PeerConnection::State::Connected) {
+        rtc::FrameInfo info(frame_yuv_->pts);
+        track_->sendFrame(reinterpret_cast<const std::byte *>(packet_->data), packet_->size, info);
+      }
     }
 
     av_packet_unref(packet_);
@@ -147,7 +147,7 @@ void WebRTCNode::rtc_worker()
   packetizer_->addToChain(sr_report);
   auto nack_response = std::make_shared<rtc::RtcpNackResponder>();
   packetizer_->addToChain(nack_response);
-  auto pli_handler = std::make_shared<rtc::PliHandler>([this]() { pli_ = true; });
+  auto pli_handler = std::make_shared<rtc::PliHandler>([this]() { got_pli_ = true; });
   packetizer_->addToChain(pli_handler);
 
   track->setMediaHandler(packetizer_);

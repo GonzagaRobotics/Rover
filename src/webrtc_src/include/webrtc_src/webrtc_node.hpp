@@ -32,12 +32,13 @@ class WebRTCNode : public rclcpp::Node
 {
 private:
   std::atomic<bool> running_ = true;
-  std::atomic<bool> pli_ = false;
-  // PeerConnection is owned by rtc_thread_ and cannot be touched by others
+  std::atomic<bool> got_pli_ = false;
+  // pc_ and track_ are owned by rtc_thread_.
   rtc::PeerConnection pc_;
   std::shared_ptr<rtc::Track> track_;
   std::string signal_data_;
 
+  // FFMPEG
   AVCodec * codec_;
   AVCodecContext * codec_ctx_;
   AVFrame * frame_;
