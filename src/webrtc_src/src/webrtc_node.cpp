@@ -11,12 +11,13 @@ void WebRTCNode::create_codec()
     throw std::runtime_error("Could not allocate video codec context");
   }
 
-  codec_ctx_->bit_rate = 400000;
-  codec_ctx_->width = 1280;
-  codec_ctx_->height = 720;
-  codec_ctx_->time_base = {1, 30};
-  codec_ctx_->framerate = {30, 1};
-  codec_ctx_->gop_size = 30;
+  codec_ctx_->bit_rate = bitrate_;
+  codec_ctx_->width = width_;
+  codec_ctx_->height = height_;
+  codec_ctx_->time_base = {1, fps_};
+  codec_ctx_->framerate = {fps_, 1};
+  codec_ctx_->gop_size = fps_ * 2;
+  // Chrome does not seem to support B-frames, so we set it to 0 to only have I and P frames
   codec_ctx_->max_b_frames = 0;
   codec_ctx_->pix_fmt = AV_PIX_FMT_YUV420P;
 
@@ -27,6 +28,65 @@ void WebRTCNode::create_codec()
   }
 }
 
+void WebRTCNode::create_pc()
+{
+  if (pc_) {
+    delete pc_;
+  }
+
+  pc_ = new rtc::PeerConnection();
+
+  pc_->onStateChange([this](rtc::PeerConnection::State state) {
+    if (state == rtc::PeerConnection::State::Closed) {
+      RCLCPP_INFO(this->get_logger(), "PeerConnection closed, recreating...");
+      create_pc();
+    } else if (state == rtc::PeerConnection::State::Failed) {
+      RCLCPP_WARN(this->get_logger(), "PeerConnection failed, recreating...");
+      create_pc();
+    }
+  });
+
+  pc_->onGatheringStateChange([this](rtc::PeerConnection::GatheringState state) {
+    if (state == rtc::PeerConnection::GatheringState::Complete) {
+      auto desc = pc_->localDescription();
+      json msg_str = {{"type", desc->typeString()}, {"sdp", std::string(desc.value())}};
+
+      StringMsg msg;
+      msg.data = msg_str.dump();
+      signal_pub_->publish(msg);
+    }
+  });
+
+  pc_->onLocalCandidate([this](rtc::Candidate candidate) {
+    json msg_str = {{"type", "candidate"}, {"candidate", std::string(candidate)}};
+
+    StringMsg msg;
+    msg.data = msg_str.dump();
+    signal_pub_->publish(msg);
+  });
+
+  const rtc::SSRC ssrc = 1;
+  rtc::Description::Video media("video", rtc::Description::Direction::SendOnly);
+  media.addH264Codec(102);
+  media.setBitrate(bitrate_);
+  media.addSSRC(ssrc, "video_send");
+  auto track = pc_->addTrack(media);
+
+  auto rtp_config = std::make_shared<rtc::RtpPacketizationConfig>(
+    1, "video_send", 102, rtc::H264RtpPacketizer::ClockRate);
+  auto packetizer_ = std::make_shared<rtc::H264RtpPacketizer>(
+    rtc::H264RtpPacketizer::Separator::StartSequence, rtp_config);
+  auto sr_report = std::make_shared<rtc::RtcpSrReporter>(rtp_config);
+  packetizer_->addToChain(sr_report);
+  auto nack_response = std::make_shared<rtc::RtcpNackResponder>();
+  packetizer_->addToChain(nack_response);
+  auto pli_handler = std::make_shared<rtc::PliHandler>([this]() { got_pli_ = true; });
+  packetizer_->addToChain(pli_handler);
+
+  track->setMediaHandler(packetizer_);
+  track_ = track;
+}
+
 void WebRTCNode::signal_cb(const StringMsg::SharedPtr msg)
 {
   if (msg->data.empty()) {
@@ -35,11 +95,7 @@ void WebRTCNode::signal_cb(const StringMsg::SharedPtr msg)
 
   std::lock_guard<std::mutex> lock(rtc_mutex_);
 
-  if (!signal_data_.empty()) {
-    std::cout << "Warning: Overwriting existing signal data" << std::endl;
-  }
-
-  signal_data_ = msg->data;
+  signal_data_.push(msg->data);
 }
 
 void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
@@ -100,7 +156,7 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
     {
       std::lock_guard<std::mutex> lock(rtc_mutex_);
 
-      if (track_ && pc_.state() == rtc::PeerConnection::State::Connected) {
+      if (track_ && pc_->state() == rtc::PeerConnection::State::Connected) {
         rtc::FrameInfo info(frame_yuv_->pts);
         track_->sendFrame(reinterpret_cast<const std::byte *>(packet_->data), packet_->size, info);
       }
@@ -112,73 +168,52 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
 
 void WebRTCNode::rtc_worker()
 {
-  pc_.onStateChange(
-    [](rtc::PeerConnection::State state) { std::cout << "State: " << state << std::endl; });
-
-  pc_.onGatheringStateChange([this](rtc::PeerConnection::GatheringState state) {
-    std::cout << "Gathering State: " << state << std::endl;
-
-    if (state == rtc::PeerConnection::GatheringState::Complete) {
-      auto desc = pc_.localDescription();
-      json msg_str = {{"type", desc->typeString()}, {"sdp", std::string(desc.value())}};
-      std::cout << "Local Description: " << msg_str.dump() << std::endl;
-
-      // TODO: Possible race condition?
-      StringMsg msg;
-      msg.data = msg_str.dump();
-      signal_pub_->publish(msg);
-
-      std::cout << "ICE Gathering Complete" << std::endl;
-    }
-  });
-
-  const rtc::SSRC ssrc = 1;
-  rtc::Description::Video media("video", rtc::Description::Direction::SendOnly);
-  media.setBitrate(400000);
-  media.addH264Codec(102);
-  media.addSSRC(ssrc, "video_send");
-  auto track = pc_.addTrack(media);
-
-  auto rtp_config = std::make_shared<rtc::RtpPacketizationConfig>(
-    1, "video_send", 102, rtc::H264RtpPacketizer::ClockRate);
-  auto packetizer_ = std::make_shared<rtc::H264RtpPacketizer>(
-    rtc::H264RtpPacketizer::Separator::StartSequence, rtp_config);
-  auto sr_report = std::make_shared<rtc::RtcpSrReporter>(rtp_config);
-  packetizer_->addToChain(sr_report);
-  auto nack_response = std::make_shared<rtc::RtcpNackResponder>();
-  packetizer_->addToChain(nack_response);
-  auto pli_handler = std::make_shared<rtc::PliHandler>([this]() { got_pli_ = true; });
-  packetizer_->addToChain(pli_handler);
-
-  track->setMediaHandler(packetizer_);
-  track_ = track;
-
-  pc_.setLocalDescription();
+  create_pc();
 
   while (running_) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    json msg_json;
-    {
-      std::lock_guard<std::mutex> lock(rtc_mutex_);
+    try {
+      json msg_json;
+      {
+        std::lock_guard<std::mutex> lock(rtc_mutex_);
 
-      if (signal_data_.empty()) {
-        continue;
+        if (signal_data_.empty()) {
+          continue;
+        }
+
+        msg_json = json::parse(signal_data_.front());
+        signal_data_.pop();
       }
 
-      msg_json = json::parse(signal_data_);
-      signal_data_.clear();
+      if (msg_json["type"] == "connect") {
+        pc_->setLocalDescription();
+      } else if (msg_json["type"] == "answer") {
+        rtc::Description answer(
+          msg_json["sdp"].get<std::string>(), msg_json["type"].get<std::string>());
+        pc_->setRemoteDescription(answer);
+      }
+    } catch (const std::exception & e) {
+      RCLCPP_ERROR(this->get_logger(), "Error processing signal data: %s", e.what());
     }
-
-    rtc::Description answer(
-      msg_json["sdp"].get<std::string>(), msg_json["type"].get<std::string>());
-    pc_.setRemoteDescription(answer);
   }
 }
 
 WebRTCNode::WebRTCNode()
 : rclcpp::Node("webrtc_src_node"), rtc_thread_(&WebRTCNode::rtc_worker, this)
 {
+  bitrate_ = this->declare_parameter("bitrate", bitrate_);
+  width_ = this->declare_parameter("width", width_);
+  height_ = this->declare_parameter("height", height_);
+  fps_ = this->declare_parameter("fps", fps_);
+
+  {
+    std::lock_guard<std::mutex> lock(rtc_mutex_);
+    if (track_) {
+      track_->description().setBitrate(bitrate_);
+    }
+  }
+
   signal_pub_ = this->create_publisher<StringMsg>("webrtc/signal_src", 10);
   signal_sub_ = this->create_subscription<StringMsg>("webrtc/signal_sink", 10, BIND(signal_cb));
   image_sub_ = this->create_subscription<ImageMsg>("/vision/main/image_raw", 10, BIND(image_cb));
@@ -188,6 +223,11 @@ WebRTCNode::~WebRTCNode()
 {
   running_ = false;
   rtc_thread_.join();
+
+  if (pc_) {
+    delete pc_;
+    pc_ = nullptr;
+  }
 
   if (frame_) {
     av_frame_free(&frame_);
@@ -245,4 +285,6 @@ void WebRTCNode::init_ffmpeg()
   if (!sws_ctx_) {
     throw std::runtime_error("Could not initialize the conversion context");
   }
+
+  RCLCPP_INFO(this->get_logger(), "FFMPEG initialized with %s", codec_->name);
 }

@@ -6,6 +6,7 @@
 #include <json.hpp>
 #include <memory>
 #include <mutex>
+#include <queue>
 #include <rclcpp/rclcpp.hpp>
 #include <rtc/rtc.hpp>
 #include <thread>
@@ -31,12 +32,17 @@ using StringMsg = std_msgs::msg::String;
 class WebRTCNode : public rclcpp::Node
 {
 private:
+  int bitrate_ = 500000;
+  int width_ = 1280;
+  int height_ = 720;
+  int fps_ = 30;
+
   std::atomic<bool> running_ = true;
   std::atomic<bool> got_pli_ = false;
   // pc_ and track_ are owned by rtc_thread_.
-  rtc::PeerConnection pc_;
+  rtc::PeerConnection * pc_;
   std::shared_ptr<rtc::Track> track_;
-  std::string signal_data_;
+  std::queue<std::string> signal_data_;
 
   // FFMPEG
   AVCodec * codec_;
@@ -54,6 +60,7 @@ private:
   std::thread rtc_thread_;
 
   void create_codec();
+  void create_pc();
 
   void signal_cb(const StringMsg::SharedPtr msg);
   void image_cb(const ImageMsg::SharedPtr msg);
