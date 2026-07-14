@@ -45,7 +45,7 @@ private:
   std::queue<std::string> signal_data_;
 
   // FFMPEG
-  AVCodec * codec_;
+  const AVCodec * codec_;
   AVCodecContext * codec_ctx_;
   AVFrame * frame_;
   AVFrame * frame_yuv_;

@@ -21,7 +21,9 @@ void WebRTCNode::create_codec()
   codec_ctx_->max_b_frames = 0;
   codec_ctx_->pix_fmt = AV_PIX_FMT_YUV420P;
 
-  av_opt_set(codec_ctx_->priv_data, "preset", "p5", 0);
+  av_opt_set(codec_ctx_->priv_data, "tune", "zerolatency", 0);
+  av_opt_set(codec_ctx_->priv_data, "profile", "baseline", 0);
+  av_opt_set(codec_ctx_->priv_data, "preset", "ultrafast", 0);
 
   if (avcodec_open2(codec_ctx_, codec_, nullptr) < 0) {
     throw std::runtime_error("Could not open codec");
@@ -115,6 +117,8 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
     return;
   }
 
+  auto start_t = std::chrono::high_resolution_clock::now();
+
   if (av_frame_make_writable(frame_) < 0 || av_frame_make_writable(frame_yuv_) < 0) {
     RCLCPP_ERROR(this->get_logger(), "Could not make frames writable");
     return;
@@ -163,6 +167,12 @@ void WebRTCNode::image_cb(const ImageMsg::SharedPtr msg)
     }
 
     av_packet_unref(packet_);
+  }
+
+  auto end_t = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_t - start_t).count();
+  if (duration > 1.0 / fps_) {
+    RCLCPP_WARN(this->get_logger(), "Encoding took too long: %f seconds", duration);
   }
 }
 
@@ -248,7 +258,7 @@ WebRTCNode::~WebRTCNode()
 
 void WebRTCNode::init_ffmpeg()
 {
-  codec_ = avcodec_find_encoder_by_name("h264_nvenc");
+  codec_ = avcodec_find_encoder_by_name("libx264");
   if (!codec_) {
     throw std::runtime_error("Codec not found");
   }
