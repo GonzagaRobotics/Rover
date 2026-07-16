@@ -1,5 +1,0 @@
-numpy
-opencv-python
-opencv-contrib-python
-pyserial
-# onnxruntime-gpu from https://elinux.org/Jetson_Zoo#ONNX_Runtime

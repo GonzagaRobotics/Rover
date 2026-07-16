@@ -10,10 +10,6 @@ Requires Ubuntu 22.04, Python 3.10, and ROS2 Humble. Assumes CUDA is installed.
 
 - `ros-humble-rosbridge-suite`
 
-### Python Dependencies
-
-Run `pip install -r requirements.txt`.
-
 ### Submodules
 
 Run `git submodule update --init --recursive` to install dependencies that get built from source.
