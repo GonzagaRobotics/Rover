@@ -9,3 +9,5 @@ uint32 heartbeat_timeout_limit
 ---
 # The rover has accepted the connection
 bool accepted
+# Empty when accepted
+string msg

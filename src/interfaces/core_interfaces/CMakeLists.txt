@@ -25,8 +25,8 @@ endif()
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Heartbeat.msg"
   "msg/HeartbeatDisconnect.msg"
+  "msg/Killswitch.msg"
   "srv/HeartbeatConnect.srv"
-  DEPENDENCIES builtin_interfaces
   ADD_LINTER_TESTS
 )
 

@@ -8,7 +8,6 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
 find_package(core_interfaces REQUIRED)
 
 if(BUILD_TESTING)
@@ -23,11 +22,10 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-include_directories(${core_interfaces_INCLUDE_DIRS})
+include_directories(${core_interfaces_INCLUDE_DIRS} include/core)
 
-add_executable(core src/core.hpp src/core.cpp src/main.cpp)
-ament_target_dependencies(core rclcpp std_msgs core_interfaces)
+add_executable(core src/core.cpp src/main.cpp)
+target_link_libraries(core rclcpp::rclcpp ${core_interfaces_TARGETS})
 
 install(TARGETS core DESTINATION lib/${PROJECT_NAME})
-
 ament_package()
