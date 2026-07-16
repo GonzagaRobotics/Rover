@@ -6,13 +6,6 @@ from rclpy.node import Node, SetParametersResult
 from rclpy.parameter import Parameter
 from sensor_msgs.msg import Image, CameraInfo
 
-CAP_FOURCC = "YUY2"
-CAP_FPS = 10
-CAP_WIDTH = 1280
-CAP_HEIGHT = 720
-
-SEND_FPS = 10
-
 
 class Vision(Node):
     def __init__(self):
@@ -21,18 +14,24 @@ class Vision(Node):
         self._frame = None
         self._frame_stamp = None
 
-        cam_id = self.declare_parameter("camera_index", -1).value
+        cam_id = self.declare_parameter("camera_index", 0).value
         self._cam_name = self.declare_parameter("camera_name", "").value
 
-        assert cam_id >= 0, "camera_index parameter must be set."
+        self._fourcc = self.declare_parameter("fourcc", "MJPG").value
+        self._fps = self.declare_parameter("fps", 30).value
+        self._width = self.declare_parameter("width", 1280).value
+        self._height = self.declare_parameter("height", 720).value
+        self._send_fps = self.declare_parameter("send_fps", 30).value
+
+        assert cam_id >= 0, "camera_index parameter must be non-negative"
 
         self.add_on_set_parameters_callback(self.set_params_cb)
 
         self._cap = cv.VideoCapture(cam_id, cv.CAP_V4L2)
-        self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*CAP_FOURCC))
-        self._cap.set(cv.CAP_PROP_FRAME_WIDTH, CAP_WIDTH)
-        self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, CAP_HEIGHT)
-        self._cap.set(cv.CAP_PROP_FPS, CAP_FPS)
+        self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*self._fourcc))
+        self._cap.set(cv.CAP_PROP_FRAME_WIDTH, self._width)
+        self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, self._height)
+        self._cap.set(cv.CAP_PROP_FPS, self._fps)
 
         self._raw_pub = self.create_publisher(Image, "/vision/main/image_raw", 10)
 
@@ -45,8 +44,14 @@ class Vision(Node):
             self._rect_pub = self.create_publisher(Image, "/vision/main/image_rect_color", 10)
             self._cam_info_pub = self.create_publisher(CameraInfo, "/vision/main/camera_info", 10)
 
-        self.create_timer(1.0 / CAP_FPS, self.cam_cb)
-        self.create_timer(1.0 / SEND_FPS, self.send_cb)
+        if self._cap.isOpened():
+            w = int(self._cap.get(cv.CAP_PROP_FRAME_WIDTH))
+            h = int(self._cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+            f = int(self._cap.get(cv.CAP_PROP_FPS))
+            self.get_logger().info(f"Camera {cam_id} opened with {w}x{h}x{f}. Sending at {self._send_fps} FPS.")
+
+        self.create_timer(1.0 / self._fps, self.cam_cb)
+        self.create_timer(1.0 / self._send_fps, self.send_cb)
 
     def set_params_cb(self, params: list[Parameter]):
         for param in params:
@@ -78,6 +83,7 @@ class Vision(Node):
         msg.height = self._frame.shape[0]
         msg.width = self._frame.shape[1]
         msg.encoding = "bgr8"
+        msg.step = self._frame.shape[1] * 3
         msg.data.frombytes(self._frame.data)
         self._raw_pub.publish(msg)
 
@@ -94,6 +100,7 @@ class Vision(Node):
         msg.height = img.shape[0]
         msg.width = img.shape[1]
         msg.encoding = "bgr8"
+        msg.step = img.shape[1] * 3
         # Since a ROI is used, the undistorted image is not contiguous in memory
         msg.data.frombytes(np.ascontiguousarray(img).data)
 

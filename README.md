@@ -14,6 +14,10 @@ Requires Ubuntu 22.04, Python 3.10, and ROS2 Humble. Assumes CUDA is installed.
 
 Run `pip install -r requirements.txt`.
 
+### Submodules
+
+Run `git submodule update --init --recursive` to install dependencies that get built from source.
+
 ### Setup
 
 For serial comms, you may need to ensure your user is in the `dialout` group.
@@ -55,5 +59,5 @@ Launch files provide a better way to orchestrate multiple nodes. They must be in
 ```bash
 ./scripts/launch.sh all
 ./scripts/launch.sh teleop
-./scripts/launch.sh jetson 
+./scripts/launch.sh jetson
 ```
