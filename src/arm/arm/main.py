@@ -2,30 +2,44 @@ import serial
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32, Int32, Bool
+from auto_msgs.msg import Aruco
+
+from arm.arm.pose import find_pose
 
 TARGET_NAME = '/dev/ttyCH341USB0'
 
+
 class Arm(Node):
     def __init__(self):
-        super().__init__('arm')
+        super().__init__('arm_node')
 
-        try:
-            self._ser = serial.Serial(TARGET_NAME, baudrate=115200)
-        except serial.SerialException as e:
-            self.get_logger().error(f'Failed to open serial port: {e}')
-            raise
+        # try:
+        #     self._ser = serial.Serial(TARGET_NAME, baudrate=115200)
+        # except serial.SerialException as e:
+        #     self.get_logger().error(f'Failed to open serial port: {e}')
+        #     raise
 
         # These subscriptions follow the command order specified by the arm
-        self.create_subscription(Float32, 'arm/base', self.base_cb, 10)
-        self.create_subscription(Float32, 'arm/shoulder', self.shoulder_cb, 10)
-        self.create_subscription(Float32, 'arm/forearm', self.forearm_cb, 10)
-        self.create_subscription(Float32, 'arm/wrist', self.wrist_cb, 10)
-        self.create_subscription(Int32, 'arm/minor/x', self.minor_x_cb, 10)
-        self.create_subscription(Int32, 'arm/minor/rot', self.minor_rot_cb, 10)
-        self.create_subscription(Bool, 'arm/minor/grab/red', self.grab_red_cb, 10)
-        self.create_subscription(Bool, 'arm/minor/grab/blk', self.grab_blk_cb, 10)
+        # self.create_subscription(Float32, 'arm/base', self.base_cb, 10)
+        # self.create_subscription(Float32, 'arm/shoulder', self.shoulder_cb, 10)
+        # self.create_subscription(Float32, 'arm/forearm', self.forearm_cb, 10)
+        # self.create_subscription(Float32, 'arm/wrist', self.wrist_cb, 10)
+        # self.create_subscription(Int32, 'arm/minor/x', self.minor_x_cb, 10)
+        # self.create_subscription(Int32, 'arm/minor/rot', self.minor_rot_cb, 10)
+        # self.create_subscription(Bool, 'arm/minor/grab/red', self.grab_red_cb, 10)
+        # self.create_subscription(Bool, 'arm/minor/grab/blk', self.grab_blk_cb, 10)
+
+        self.create_subscription(Aruco, '/auto/aruco/detect', self.aruco_cb, 10)
 
         self.get_logger().info('Ready')
+
+    def aruco_cb(self, msg: Aruco):
+        pose = find_pose(msg)
+        if pose is None:
+            self.get_logger().warn('Failed to find pose')
+            return
+
+        self.get_logger().info(f'Pose: {pose}')
 
     def base_cb(self, msg: Float32):
         self._send_dc(0, msg.data)
@@ -71,10 +85,11 @@ class Arm(Node):
 def main(args=None):
     rclpy.init(args=args)
     arm = Arm()
-    
+
     try:
         rclpy.spin(arm)
     except KeyboardInterrupt:
         pass
     finally:
-        arm._ser.close()
+        # arm._ser.close()
+        pass
