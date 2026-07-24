@@ -27,6 +27,11 @@ RUN echo ". /opt/ros/jazzy/setup.bash" >> ~/.bashrc
 # Rover
 RUN apt-get install -y ros-jazzy-pcl-ros
 RUN apt-get install -y ffmpeg libavformat-dev libswscale-dev libavcodec-dev
+RUN apt-get install -y python3-pip
+RUN pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu132 --break-system-packages
 
 COPY --exclude=__pycache__/ src/ /Rover/src/
 COPY --exclude=__pycache__/ launch/ /Rover/launch/
+
+# SHELL ["/bin/bash", "-c"]
+# RUN . /opt/ros/jazzy/setup.bash && cd Rover && colcon build --symlink-install
