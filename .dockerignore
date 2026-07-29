@@ -1,0 +1,8 @@
+# ROS Generated Files
+build/
+install/
+log/
+*.swp
+
+__pycache__/
+.venv

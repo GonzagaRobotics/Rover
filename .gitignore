@@ -4,8 +4,9 @@ install/
 log/
 *.swp
 
-# ONNX models
-src/object_detect/models/*
+# ML models
+src/auto/object_detect/models/*
+!src/auto/object_detect/models/README.md
 
 __pycache__/
 .venv
