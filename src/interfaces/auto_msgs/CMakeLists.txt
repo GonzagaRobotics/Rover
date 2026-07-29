@@ -17,7 +17,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Plan.msg"
   "msg/State.msg"
   "msg/Target.msg"
-  "msg/Aruco.msg"
+  "msg/Detection.msg"
   "action/Pathfind.action"
   "action/GoTo.action"
   DEPENDENCIES std_msgs sensor_msgs geometry_msgs

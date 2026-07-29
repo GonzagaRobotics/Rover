@@ -2,34 +2,34 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node, SetParametersResult
 import rclpy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, RegionOfInterest
 from rclpy.parameter import Parameter
+from auto_msgs.msg import Detection
 import numpy as np
-import torch
+import onnxruntime as ort
+import cv2
 
-DETECT_FREQ = 0.2
-CONF_THRESHOLD = 0.2
+DETECT_FREQ = 1
+CONF_THRESHOLD = 0.1
 CLASS_NAMES = ["bottle", "mallet", "hammer"]
 
 
 class ObjectDetect(Node):
     def __init__(self):
-        super().__init__('object_detect')
+        super().__init__('object_detect', namespace="auto")
 
         self._model_name = self.declare_parameter("model_name", "test").value
         self.active = self.declare_parameter("active", True).value
         self.target_class = self.declare_parameter("target_class", "mallet").value
 
+        self._img_header = None
         self._img = None
-        # Set when the model is loaded
-        self._device = None 
-        self._model = None
-        self._load_model()
+        self._session = self._load_model()
 
         self.add_on_set_parameters_callback(self.param_cb)
 
         self.create_subscription(Image, "/vision/main/image_rect_color", self.img_cb, 1)
-
+        self._detect_pub = self.create_publisher(Detection, "object/detect", 10)
         self.create_timer(1.0 / DETECT_FREQ, self.detect_cb)
 
         self.get_logger().info("Ready")
@@ -47,72 +47,76 @@ class ObjectDetect(Node):
                 else:
                     return SetParametersResult(successful=False, reason="Invalid target class.")
             elif param.name == "model_name":
-                return SetParametersResult(successful=False, reason="Model cannot be changed at runtime.")
+                self._model_name = param.value
+                self._session = self._load_model()
+                return SetParametersResult(successful=True)
 
     def img_cb(self, msg: Image):
-        if not self.active:
-            return
-
         # Convert ROS Image message to numpy array
         self._img = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, -1)
+        self._img_header = msg.header
 
     def detect_cb(self):
-        if not self.active or self._model is None:
+        if not self.active or self._img is None or self._session is None:
             return
 
-        if self._img is None:
-            return
+        in_img = self._img
+        # # Letterbox to 640x640: scale to fit, pad the rest (preserves aspect ratio)
+        h, w, _ = in_img.shape
+        scale = 640 / max(h, w)
+        new_h, new_w = int(h * scale), int(w * scale)
+        pad_top = (640 - new_h) // 2
+        pad_bottom = 640 - new_h - pad_top
+        pad_left = (640 - new_w) // 2
+        pad_right = 640 - new_w - pad_left
+        in_img = cv2.resize(in_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        in_img = cv2.copyMakeBorder(in_img, pad_top, pad_bottom, pad_left, pad_right, cv2.BORDER_CONSTANT, value=0)
 
-        self.get_logger().info("Running detection...")
+        in_img = in_img.astype(np.float32) / 255.0  # Normalize to [0, 1]
+        in_img = np.expand_dims(in_img.transpose(2, 0, 1), axis=0)  # Convert HWC to NCHW
 
-        with torch.no_grad():
-            input_tensor = torch.from_numpy(self._img.astype(np.float32) / 255.0).to(self._device).to(torch.float16)
-            # Add batch dimension and convert HWC to CHW format
-            input_tensor = input_tensor.permute(2, 0, 1).unsqueeze(0)
-            # Letterbox to 640x640: scale to fit, pad the rest (preserves aspect ratio)
-            _, _, h, w = input_tensor.shape
-            scale = 640 / max(h, w)
-            new_h, new_w = int(h * scale), int(w * scale)
-            input_tensor = torch.nn.functional.interpolate(
-                input_tensor.float(), size=(new_h, new_w), mode='bilinear', align_corners=False
-            ).to(torch.float16)
-            pad_top = (640 - new_h) // 2
-            pad_bottom = 640 - new_h - pad_top
-            pad_left = (640 - new_w) // 2
-            pad_right = 640 - new_w - pad_left
-            input_tensor = torch.nn.functional.pad(input_tensor, (pad_left, pad_right, pad_top, pad_bottom))
-            res = self._model(input_tensor)
-        # np.savetxt("/tmp/det.txt", res[0].cpu().numpy())
-        detections = res[0]  # remove batch dim -> [300, 6]
+        out = self._session.run(["output0"], {"images": in_img})
+        detections = out[0][0]  # remove batch dim -> [300, 6]
         detections = detections[detections[:, 4] >= CONF_THRESHOLD]  # filter by confidence
         target_id = CLASS_NAMES.index(self.target_class)
-        detections = detections[detections[:, 5].int() == target_id]  # filter by class
+        detections = detections[detections[:, 5].astype(int) == target_id]  # filter by class
 
-        for det in detections:
-            x1, y1, x2, y2, conf, cls = det.tolist()
-            self.get_logger().info(
-                f"Detected {CLASS_NAMES[int(cls)]} conf={conf:.2f} box=[{x1:.0f},{y1:.0f},{x2:.0f},{y2:.0f}]"
-            )
+        detection_msg = Detection()
+        detection_msg.header = self._img_header
 
+        # # Find the detection with the highest confidence
+        if len(detections) > 0:
+            best_det = detections[detections[:, 4].argmax()]
+            x1, y1, x2, y2, conf, cls = best_det.tolist()
+            detection_msg.ids.append(int(cls))
+            detection_msg.confs.append(float(conf))
+            # TODO: Add basic pose estimation
+            detection_msg.rois.append(RegionOfInterest(
+                x_offset=int(x1 / scale) - (pad_left + pad_right),
+                y_offset=int(y1 / scale) - (pad_top + pad_bottom),
+                width=int((x2 - x1) / scale),
+                height=int((y2 - y1) / scale)
+            ))
+
+        self._detect_pub.publish(detection_msg)
         self._img = None
 
     def _load_model(self):
         models_dir = get_package_share_directory('object_detect') + "/models/"
-        model_path = models_dir + self._model_name + ".torchscript"
+        model_path = models_dir + self._model_name + ".onnx"
 
         if not os.path.exists(model_path):
             self.get_logger().error(f"Model file {model_path} does not exist.")
             return None
 
         try:
-            if not torch.cuda.is_available():
-                self.get_logger().warning("CUDA not available, using CPU.")
+            if ort.get_device() == "CPU":
+                self.get_logger().warning("CPU being used.")
+                providers = ["CPUExecutionProvider"]
+            else:
+                providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
 
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            model = torch.jit.load(model_path, map_location=device)
-            model.eval()
-            self._device = device
-            self._model = model
+            return ort.InferenceSession(model_path, providers=providers)
         except Exception as e:
             self.get_logger().error(f"Failed to load model {self._model_name}: {e}")
             return None

@@ -2,6 +2,10 @@
 
 # Use inside the first level of the Rover directory. The only parameter is the name of the node
 
+if [[ "$ROS_DISTRO" == "" ]]; then
+    source /opt/ros/jazzy/setup.bash
+fi
+
 if [[ ! -d install/ ]]; then
     echo "Install directory does not exist!"
     exit 1

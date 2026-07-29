@@ -5,7 +5,7 @@ from rclpy.node import Node, Parameter, SetParametersResult
 from sensor_msgs.msg import Image, RegionOfInterest, CameraInfo
 from geometry_msgs.msg import Point, Vector3
 from visualization_msgs.msg import Marker, MarkerArray
-from auto_msgs.msg import Aruco as ArucoMsg
+from auto_msgs.msg import Detection
 
 DETECT_RATE = 5  # Hz
 
@@ -54,7 +54,7 @@ class ArucoDetector:
 
 class ArucoNode(Node):
     def __init__(self):
-        super().__init__("aruco_node", namespace="auto")
+        super().__init__("aruco", namespace="auto")
 
         self._ready = False
 
@@ -65,7 +65,7 @@ class ArucoNode(Node):
         self._detector = ArucoDetector(marker_size)
 
         self._viz_pub = self.create_publisher(MarkerArray, 'aruco/viz', 10)
-        self._aruco_pub = self.create_publisher(ArucoMsg, "aruco/detect", 10)
+        self._detect_pub = self.create_publisher(Detection, "aruco/detect", 10)
 
         self.create_subscription(Image, "/vision/main/image_raw", self.cam_cb, 1)
         self.create_subscription(CameraInfo, "/vision/main/camera_info", self.cam_cb, 1)
@@ -109,7 +109,7 @@ class ArucoNode(Node):
 
         corners, ids = self._detector.detect(img)
 
-        msg = ArucoMsg()
+        msg = Detection()
         msg.header.frame_id = "map"
         msg.header.stamp = self.get_clock().now().to_msg()
 
@@ -129,6 +129,7 @@ class ArucoNode(Node):
             roi.height = int(image_points[:, 1].max() - image_points[:, 1].min())
 
             msg.ids.append(ids[i][0])
+            msg.confs.append(1.0)  # Confidence can just be 1.0
             msg.translations.append(Vector3(x=t[2][0], y=-t[0][0], z=-t[1][0]))
             msg.rois.append(roi)
 
@@ -148,7 +149,7 @@ class ArucoNode(Node):
             marker_array.markers.append(marker)
             self._viz_pub.publish(marker_array)
 
-        self._aruco_pub.publish(msg)
+        self._detect_pub.publish(msg)
 
         self._last_img = None
 
