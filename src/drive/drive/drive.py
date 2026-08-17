@@ -1,43 +1,63 @@
+import numpy as np
 import rclpy
 import serial
-from rclpy.node import Node, Subscription
-from drive_interfaces.msg import DriveCommand
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
 
 
 class Drive(Node):
-    drive_sub: Subscription
-    ser: serial.Serial
-
     def __init__(self):
         super().__init__('drive')
 
-        self.ser = self.find_serial()
+        ser_root = self.declare_parameter("ser_root", "/dev/ttyUSB").value
+        self._ser = self.find_serial(ser_root)
+        self._last_cmd = None
 
-        self.drive_sub = self.create_subscription(
-            DriveCommand,
-            '/drive/command',
-            self.drive_cb,
+        self.create_subscription(
+            Twist,
+            '/cmd_vel',
+            self.twist_cb,
             10
         )
 
+        self.create_timer(0.25, self.timer_cb)
+
     def __del__(self):
-        if self.ser.is_open:
-            self.ser.close()
+        if self._ser is not None:
+            self._ser.close()
 
-    def find_serial(self) -> serial.Serial:
-        # TODO: We are likely going to have multiple potential
-        # serial devices active, so we will also need some mechanism to find
-        # the correct one.
-        return serial.Serial('/dev/ttyUSB0', 115200)
+    def find_serial(self, root: str) -> serial.Serial:
+        for i in range(10):
+            try:
+                ser = serial.Serial(f"{root}{i}", 115200)
+            except serial.SerialException:
+                continue
 
-    def drive_cb(self, msg: DriveCommand):
-        FB = int(msg.forward_backward * 100 + 100)
-        LR = int(-msg.left_right * 100 + 100)
+            ser.write(bytes([0xff, 0x00]))
+            if ser.readline() != b"DRIVE\n":
+                ser.close()
+                continue
 
-        cmdStr = f"FB:{FB} LR:{LR}\n"
+            self.get_logger().info(f"Found drive system at {ser.name}")
+            return ser
+
+        raise serial.SerialException(f"Failed to find a valid drive system within {root}")
+
+    def twist_cb(self, msg: Twist):
+        self._last_cmd = msg
+
+    def timer_cb(self):
+        self._send_cmd()
+
+    def _send_cmd(self):
+        if self._last_cmd is None:
+            return
+
+        left = int(np.clip(self._last_cmd.linear.x - self._last_cmd.angular.z, -1.0, 1.0) * 100 + 100)
+        right = int(np.clip(self._last_cmd.linear.x + self._last_cmd.angular.z, -1.0, 1.0) * 100 + 100)
 
         try:
-            print(self.ser.write(cmdStr.encode()))
+            self._ser.write(bytes([left, right]))
         except Exception as exc:
             self.get_logger().error(f"Failed to send command: {exc}")
 
@@ -45,9 +65,11 @@ class Drive(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    node = Drive()
-
-    node.get_logger().info(f"Drive System ready. Using serial port: {node.ser.name}")
+    try:
+        node = Drive()
+    except Exception as exc:
+        print(f"Failed to create drive node: {exc}")
+        return
 
     try:
         rclpy.spin(node)
