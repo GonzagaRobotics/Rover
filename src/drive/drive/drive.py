@@ -2,16 +2,28 @@ import numpy as np
 import rclpy
 import serial
 from rclpy.node import Node
+from rclpy.logging import get_logger
 from geometry_msgs.msg import Twist
+from core_interfaces.msg import Killswitch
 
 
 class Drive(Node):
+    _ser = None
+
     def __init__(self):
         super().__init__('drive')
 
         ser_root = self.declare_parameter("ser_root", "/dev/ttyUSB").value
         self._ser = self.find_serial(ser_root)
         self._last_cmd = None
+        self._kill = False
+
+        self.create_subscription(
+            Killswitch,
+            "/killswitch",
+            self.kill_cb,
+            10
+        )
 
         self.create_subscription(
             Twist,
@@ -51,15 +63,22 @@ class Drive(Node):
 
     def _send_cmd(self):
         if self._last_cmd is None:
-            return
-
-        left = int(np.clip(self._last_cmd.linear.x - self._last_cmd.angular.z, -1.0, 1.0) * 100 + 100)
-        right = int(np.clip(self._last_cmd.linear.x + self._last_cmd.angular.z, -1.0, 1.0) * 100 + 100)
+            left = 100
+            right = 100
+        else:
+            left = int(np.clip(self._last_cmd.linear.x - self._last_cmd.angular.z, -1.0, 1.0) * 100 + 100)
+            right = int(np.clip(self._last_cmd.linear.x + self._last_cmd.angular.z, -1.0, 1.0) * 100 + 100)
 
         try:
             self._ser.write(bytes([left, right]))
         except Exception as exc:
             self.get_logger().error(f"Failed to send command: {exc}")
+
+    def kill_cb(self, msg: Killswitch):
+        self._kill = msg.on
+        if self._kill:
+            self._last_cmd = None
+            self._send_cmd()
 
 
 def main(args=None):
@@ -68,7 +87,7 @@ def main(args=None):
     try:
         node = Drive()
     except Exception as exc:
-        print(f"Failed to create drive node: {exc}")
+        get_logger("global").error(str(exc))
         return
 
     try:

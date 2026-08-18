@@ -3,15 +3,13 @@
     "python.autoComplete.extraPaths": [
         "/opt/ros/jazzy/lib/python3.12/site-packages",
         "/opt/ros/jazzy/local/lib/python3.12/site-packages",
-        "./install/core_interfaces/local/lib/python3.12/site-packages",
-        "./install/drive_interfaces/local/lib/python3.12/site-packages",
+        "./install/core_interfaces/lib/python3.12/site-packages",
         "./install/auto_msgs/lib/python3.12/site-packages",
     ],
     "python.analysis.extraPaths": [
         "/opt/ros/jazzy/lib/python3.12/site-packages",
         "/opt/ros/jazzy/local/lib/python3.12/site-packages",
-        "./install/core_interfaces/local/lib/python3.12/site-packages",
-        "./install/drive_interfaces/local/lib/python3.12/site-packages",
+        "./install/core_interfaces/lib/python3.12/site-packages",
         "./install/auto_msgs/lib/python3.12/site-packages",
     ],
     "files.associations": {
@@ -19,5 +17,4 @@
         "chrono": "cpp"
     },
     "cmake.ignoreCMakeListsMissing": true,
-    "cmake.sourceDirectory": "${workspaceFolder}/src/auto/obstacle_avoid/"
 }
