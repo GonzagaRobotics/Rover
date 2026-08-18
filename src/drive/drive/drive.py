@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import rclpy
 import serial
@@ -41,9 +42,12 @@ class Drive(Node):
     def find_serial(self, root: str) -> serial.Serial:
         for i in range(10):
             try:
-                ser = serial.Serial(f"{root}{i}", 115200)
+                ser = serial.Serial(f"{root}{i}", 115200, timeout=1)
             except serial.SerialException:
                 continue
+
+            # The microcontroller needs time to reset
+            time.sleep(2)
 
             ser.write(bytes([0xff, 0x00]))
             if ser.readline() != b"DRIVE\n":
