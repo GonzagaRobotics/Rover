@@ -9,4 +9,5 @@ src/auto/object_detect/models/*
 !src/auto/object_detect/models/README.md
 
 __pycache__/
-.venv
+.venv/
+.vscode/
