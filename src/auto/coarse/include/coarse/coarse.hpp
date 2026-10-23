@@ -4,7 +4,7 @@
 
 #include "auto_msgs/action/go_to.hpp"
 #include "auto_msgs/action/pathfind.hpp"
-#include "auto_msgs/msg/aruco.hpp"
+#include "auto_msgs/msg/detection.hpp"
 #include "auto_msgs/msg/location.hpp"
 #include "auto_msgs/msg/plan.hpp"
 #include "auto_msgs/msg/target.hpp"
@@ -28,7 +28,7 @@ using Pathfind = auto_msgs::action::Pathfind;
 using GoalHandlePathfind = rclcpp_action::ClientGoalHandle<Pathfind>;
 using GoTo = auto_msgs::action::GoTo;
 using GoalHandleGoTo = rclcpp_action::ServerGoalHandle<GoTo>;
-using ArucoMsg = auto_msgs::msg::Aruco;
+using DetectMsg = auto_msgs::msg::Detection;
 
 class CoarseNode : public rclcpp::Node
 {
@@ -45,7 +45,7 @@ private:
   rclcpp::Publisher<LocMsg>::SharedPtr fine_goal_pub_;
   rclcpp::Publisher<EmptyMsg>::SharedPtr fine_stop_pub_;
 
-  rclcpp::Subscription<ArucoMsg>::SharedPtr aruco_sub_;
+  rclcpp::Subscription<DetectMsg>::SharedPtr aruco_sub_;
 
   rclcpp_action::Client<Pathfind>::SharedPtr pathfind_client_;
   rclcpp_action::Server<GoTo>::SharedPtr goto_server_;
@@ -53,7 +53,7 @@ private:
   rclcpp::TimerBase::SharedPtr goto_check_timer_;
 
   void fix_cb(const FixMsg::SharedPtr msg);
-  void aruco_cb(const ArucoMsg::SharedPtr msg);
+  void aruco_cb(const DetectMsg::SharedPtr msg);
 
   rclcpp_action::GoalResponse goto_goal_cb(
     const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const GoTo::Goal> goal);

@@ -15,7 +15,7 @@ void CoarseNode::fix_cb(const FixMsg::SharedPtr msg)
   location_->longitude = msg->longitude;
 }
 
-void CoarseNode::aruco_cb(const ArucoMsg::SharedPtr msg)
+void CoarseNode::aruco_cb(const DetectMsg::SharedPtr msg)
 {
   auto n_markers = msg->ids.size();
 
@@ -50,8 +50,7 @@ rclcpp_action::GoalResponse CoarseNode::goto_goal_cb(
   target_ = std::make_shared<auto_msgs::msg::Target>(goal->target);
 
   if (
-    target_->type != auto_msgs::msg::Target::TYPE_GNSS &&
-    target_->type != auto_msgs::msg::Target::TYPE_ARUCO &&
+    target_->type != auto_msgs::msg::Target::TYPE_GNSS && target_->type != auto_msgs::msg::Target::TYPE_ARUCO &&
     target_->type != auto_msgs::msg::Target::TYPE_OBJECT) {
     RCLCPP_WARN(get_logger(), "Invalid target type %d, rejecting goto goal", target_->type);
     return rclcpp_action::GoalResponse::REJECT;
@@ -64,8 +63,7 @@ rclcpp_action::GoalResponse CoarseNode::goto_goal_cb(
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-rclcpp_action::CancelResponse CoarseNode::goto_cancel_cb(
-  const std::shared_ptr<GoalHandleGoTo> goal_handle)
+rclcpp_action::CancelResponse CoarseNode::goto_cancel_cb(const std::shared_ptr<GoalHandleGoTo> goal_handle)
 {
   auto uuid_str = rclcpp_action::to_string(goal_handle->get_goal_id());
   RCLCPP_INFO(get_logger(), "Cancelling goto goal %s", uuid_str.c_str());
@@ -101,8 +99,7 @@ void CoarseNode::goto_accepted_cb(const std::shared_ptr<GoalHandleGoTo> goal_han
   using namespace std::placeholders;
 
   auto pathfind_goal_opts = rclcpp_action::Client<Pathfind>::SendGoalOptions();
-  pathfind_goal_opts.goal_response_callback =
-    std::bind(&CoarseNode::pathfind_goal_res_cb, this, _1);
+  pathfind_goal_opts.goal_response_callback = std::bind(&CoarseNode::pathfind_goal_res_cb, this, _1);
   pathfind_goal_opts.result_callback = std::bind(&CoarseNode::pathfind_res_cb, this, _1);
 
   auto pathfind_goal = Pathfind::Goal();
@@ -151,8 +148,7 @@ void CoarseNode::pathfind_res_cb(const GoalHandlePathfind::WrappedResult & resul
   } else if (result.code == rclcpp_action::ResultCode::CANCELED) {
     if (goto_goal_handle_) {
       // This should not happen, but would cause a failure if it did
-      RCLCPP_ERROR(
-        get_logger(), "Pathfind goal canceled while handle still exists. This should not happen.");
+      RCLCPP_ERROR(get_logger(), "Pathfind goal canceled while handle still exists. This should not happen.");
 
       auto res_msg = std::make_shared<GoTo::Result>();
       res_msg->state.state = StateMsg::FAILURE;
@@ -164,9 +160,7 @@ void CoarseNode::pathfind_res_cb(const GoalHandlePathfind::WrappedResult & resul
     return;
   }
 
-  RCLCPP_INFO(
-    get_logger(), "Pathfind result received with %ld waypoints",
-    result.result->plan.waypoints.size());
+  RCLCPP_INFO(get_logger(), "Pathfind result received with %ld waypoints", result.result->plan.waypoints.size());
 
   json feedback;
   feedback["wp"] = json::array();
@@ -272,7 +266,7 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
   using namespace std::placeholders;
 
   fix_sub_ = this->create_subscription<FixMsg>("/fix", 10, BIND(fix_cb));
-  aruco_sub_ = this->create_subscription<ArucoMsg>("aruco/detect", 10, BIND(aruco_cb));
+  aruco_sub_ = this->create_subscription<DetectMsg>("aruco/detect", 10, BIND(aruco_cb));
 
   fine_goal_pub_ = this->create_publisher<LocMsg>("fine_goal", 10);
   fine_stop_pub_ = this->create_publisher<EmptyMsg>("fine_stop", 10);
@@ -280,12 +274,10 @@ CoarseNode::CoarseNode() : Node("coarse_node", "auto")
   pathfind_client_ = rclcpp_action::create_client<Pathfind>(this, "pathfind");
 
   goto_server_ = rclcpp_action::create_server<GoTo>(
-    this, "goto", std::bind(&CoarseNode::goto_goal_cb, this, _1, _2),
-    std::bind(&CoarseNode::goto_cancel_cb, this, _1),
+    this, "goto", std::bind(&CoarseNode::goto_goal_cb, this, _1, _2), std::bind(&CoarseNode::goto_cancel_cb, this, _1),
     std::bind(&CoarseNode::goto_accepted_cb, this, _1));
 
-  goto_check_timer_ =
-    this->create_wall_timer(std::chrono::seconds(1), std::bind(&CoarseNode::goto_check, this));
+  goto_check_timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&CoarseNode::goto_check, this));
 
   // Test init of location
   location_ = std::make_shared<LocMsg>();
