@@ -8,6 +8,8 @@ log/
 src/auto/object_detect/models/*
 !src/auto/object_detect/models/README.md
 
+# Cache and user-specific configs
 __pycache__/
 .venv/
 .vscode/
+.clangd
