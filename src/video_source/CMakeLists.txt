@@ -1,23 +1,32 @@
 cmake_minimum_required(VERSION 3.8)
-project(webrtc_src)
+project(video_source)
+include(FetchContent)
 
-# Build libdatachannel first
-set(NO_EXAMPLES TRUE CACHE BOOL "Disable examples" FORCE)
-set(NO_TESTS TRUE CACHE BOOL "Disable tests" FORCE)
-add_subdirectory(libdatachannel)
-
-# FFMPEG for video encoding
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavutil libswscale)
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# uvgRTP
+FetchContent_Declare(
+  uvgRTP
+  GIT_REPOSITORY https://github.com/ultravideo/uvgRTP
+  GIT_TAG v4.0.2
+)
+SET(UVGRTP_DISABLE_INSTALL ON)
+FetchContent_MakeAvailable(uvgrtp)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+
+# x264 for video encoding
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(x264 REQUIRED IMPORTED_TARGET x264)
+find_path(LIBYUV_INCLUDE_DIR libyuv.h REQUIRED)
+find_library(LIBYUV_LIBRARY yuv REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -31,10 +40,10 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-include_directories(include/webrtc_src include/json)
-  
-add_executable(webrtc_src src/main.cpp src/webrtc_node.cpp)
-target_link_libraries(webrtc_src LibDataChannel::LibDataChannel rclcpp::rclcpp ${sensor_msgs_TARGETS} PkgConfig::FFMPEG)
+include_directories(include)
 
-install(TARGETS webrtc_src DESTINATION lib/${PROJECT_NAME})
+add_executable(source src/main.cpp src/source.cpp)
+target_link_libraries(source rclcpp::rclcpp ${sensor_msgs_TARGETS} PkgConfig::x264 ${LIBYUV_LIBRARY} uvgrtp)
+
+install(TARGETS source DESTINATION lib/${PROJECT_NAME})
 ament_package()

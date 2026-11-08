@@ -1,3 +1,0 @@
-[submodule "libdatachannel"]
-    path = src/webrtc_src/libdatachannel
-    url = https://github.com/paullouisageneau/libdatachannel.git
