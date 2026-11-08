@@ -43,9 +43,14 @@ void SourceNode::init_encoder()
 
 SourceNode::SourceNode() : Node("video_source_node")
 {
+  rcl_interfaces::msg::ParameterDescriptor remote_ip_desc;
+  remote_ip_desc.read_only = true;
+  remote_ip_desc.description = "The IP address of the remote peer";
+  auto remote_ip = this->declare_parameter("remote_ip", "127.0.0.1", remote_ip_desc);
+
   // RTP
 
-  session_ = ctx_.create_session("127.0.0.1");
+  session_ = ctx_.create_session(remote_ip);
   stream_ = session_->create_stream(8890, RTP_FORMAT_H264, RCE_SEND_ONLY);
 
   if (!stream_) {
