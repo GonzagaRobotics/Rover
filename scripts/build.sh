@@ -12,6 +12,6 @@ case "$*" in
         ;;
 esac
 
-CMD="$CMD --cmake-args -DCMAKE_BUILD_TYPE=Release"
+CMD="$CMD --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release"
 
 $CMD

@@ -70,7 +70,7 @@ SourceNode::SourceNode() : Node("video_source_node")
   }
 
   image_sub_ = this->create_subscription<ImageMsg>(
-    "/vision/main/image_raw", rclcpp::SensorDataQoS(), std::bind(&SourceNode::image_cb, this, std::placeholders::_1));
+    "/camera/image_raw", rclcpp::SensorDataQoS(), std::bind(&SourceNode::image_cb, this, std::placeholders::_1));
 
   RCLCPP_INFO(this->get_logger(), "Ready");
 }
@@ -114,9 +114,6 @@ void SourceNode::image_cb(const ImageMsg::SharedPtr msg)
   }
 
   pic_in_.i_pts = msg->header.stamp.sec * 1000000LL + msg->header.stamp.nanosec / 1000;
-
-  // // Force an IDR on PLI instead of rebuilding the encoder
-  // pic_in_.i_type = got_pli_.exchange(false) ? X264_TYPE_IDR : X264_TYPE_AUTO;
 
   x264_nal_t * nals;
   int n_nals;
