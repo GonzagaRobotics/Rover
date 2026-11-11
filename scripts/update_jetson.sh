@@ -6,4 +6,5 @@ rsync -r --delete --delete-excluded \
   --exclude=build \
   --exclude=install \
   --exclude=log \
-  ../Rover jetson@10.0.0.1:~/
+  --exclude=.venv \
+  ../Rover jetson@jetson.local:~/

@@ -4,6 +4,7 @@ import rclpy
 import serial
 from rclpy.node import Node
 from rclpy.logging import get_logger
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy
 from geometry_msgs.msg import Twist
 from core_interfaces.msg import Killswitch
 
@@ -30,7 +31,10 @@ class Drive(Node):
             Twist,
             '/cmd_vel',
             self.twist_cb,
-            10
+            QoSProfile(
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                depth=5
+            )
         )
 
         self.create_timer(0.25, self.timer_cb)
