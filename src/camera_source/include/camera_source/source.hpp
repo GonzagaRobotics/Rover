@@ -4,6 +4,7 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <thread>
 
@@ -42,6 +43,10 @@ private:
   void send_cb();
 
 public:
-  CameraSource();
+  CameraSource() : CameraSource(rclcpp::NodeOptions()) {}
+  CameraSource(const rclcpp::NodeOptions & options);
+
   ~CameraSource();
 };
+
+RCLCPP_COMPONENTS_REGISTER_NODE(CameraSource)

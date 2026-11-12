@@ -44,7 +44,8 @@ void CameraSource::send_cb()
   publisher_->publish(msg);
 }
 
-CameraSource::CameraSource() : Node("camera_source_node"), capture_thread_(&CameraSource::capture_worker, this)
+CameraSource::CameraSource(const rclcpp::NodeOptions & options)
+: Node("camera_source_node", options), capture_thread_(&CameraSource::capture_worker, this)
 {
   camera_name_ = declare_parameter("camera_name", "/dev/video0", read_only("Camera resource path"));
   width_ = declare_parameter("width", 1280, read_only("Camera image width"));
@@ -53,10 +54,10 @@ CameraSource::CameraSource() : Node("camera_source_node"), capture_thread_(&Came
   send_fps_ = declare_parameter("send_fps", 30, read_only("Send every Nth frame to reduce bandwidth"));
 
   if (!cap_.open(camera_name_, cv::CAP_V4L2)) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to open camera");
     capture_state_ = 2;
     capture_thread_.join();
-    return;
+
+    throw std::runtime_error("Failed to open camera");
   }
 
   cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));

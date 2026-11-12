@@ -10,6 +10,7 @@ set(CMAKE_BUILD_TYPE RelWithDebInfo)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 
@@ -27,8 +28,9 @@ endif()
 
 include_directories(include ${OpenCV_INCLUDE_DIRS})
 
-add_executable(source src/main.cpp src/source.cpp)
-target_link_libraries(source rclcpp::rclcpp ${sensor_msgs_TARGETS} ${OpenCV_LIBS})
+add_library(source_comp SHARED src/source.cpp)
+target_link_libraries(source_comp rclcpp::rclcpp rclcpp_components::component ${sensor_msgs_TARGETS} ${OpenCV_LIBS})
 
-install(TARGETS source DESTINATION lib/${PROJECT_NAME})
+rclcpp_components_register_node(source_comp PLUGIN "CameraSource" EXECUTABLE camera_source)
+install(TARGETS source_comp DESTINATION lib)
 ament_package()
