@@ -2,26 +2,18 @@
 
 Monorepo for all core ROS2 packages that run on the Jetson Orin.
 
-Requires Ubuntu 22.04, Python 3.10, and ROS2 Humble. Assumes CUDA is installed.
+Requires Ubuntu 24.04, ROS2 Jazzy. Assumes CUDA is installed.
 
 ## Setup
 
-### System Dependencies
-
-- `ros-humble-rosbridge-suite`
-
-### Submodules
-
-Run `git submodule update --init --recursive` to install dependencies that get built from source.
-
-### Setup
+### Environment
 
 For serial comms, you may need to ensure your user is in the `dialout` group.
 
 It is also recommended to add the ROS setup script to your `.bashrc`:
 
 ```bash
-echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+echo "source /opt/ros/$ROS_DISTRO$/setup.bash" >> ~/.bashrc
 ```
 
 All commands to build and run assume ROS is sourced. Do not have any workspace sourced when building.
