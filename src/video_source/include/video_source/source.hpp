@@ -1,4 +1,5 @@
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <uvgrtp/lib.hh>
 
@@ -33,8 +34,11 @@ private:
   void init_encoder();
 
 public:
-  SourceNode();
+  SourceNode() : SourceNode(rclcpp::NodeOptions()) {}
+  SourceNode(const rclcpp::NodeOptions & options);
   ~SourceNode();
 
   void image_cb(const ImageMsg::SharedPtr msg);
 };
+
+RCLCPP_COMPONENTS_REGISTER_NODE(SourceNode)

@@ -41,7 +41,7 @@ void SourceNode::init_encoder()
   pic_allocated_ = true;
 }
 
-SourceNode::SourceNode() : Node("video_source_node")
+SourceNode::SourceNode(const rclcpp::NodeOptions & options) : Node("video_source_node", options)
 {
   rcl_interfaces::msg::ParameterDescriptor remote_ip_desc;
   remote_ip_desc.read_only = true;
@@ -50,7 +50,7 @@ SourceNode::SourceNode() : Node("video_source_node")
 
   // RTP
 
-  session_ = ctx_.create_session(remote_ip);
+  session_ = ctx_.create_session(remote_ip.c_str());
   stream_ = session_->create_stream(8890, RTP_FORMAT_H264, RCE_SEND_ONLY);
 
   if (!stream_) {

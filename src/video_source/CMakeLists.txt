@@ -15,11 +15,14 @@ FetchContent_Declare(
   GIT_TAG v4.0.2
 )
 SET(UVGRTP_DISABLE_INSTALL ON)
+SET(UVGRTP_BUILD_SHARED ON)
+SET(UVGRTP_DISABLE_CRYPTO ON)
 FetchContent_MakeAvailable(uvgrtp)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 # x264 for video encoding
@@ -42,8 +45,9 @@ endif()
 
 include_directories(include)
 
-add_executable(source src/main.cpp src/source.cpp)
-target_link_libraries(source rclcpp::rclcpp ${sensor_msgs_TARGETS} PkgConfig::x264 ${LIBYUV_LIBRARY} uvgrtp)
+add_library(source_comp SHARED src/source.cpp)
+target_link_libraries(source_comp rclcpp::rclcpp rclcpp_components::component ${sensor_msgs_TARGETS} PkgConfig::x264 ${LIBYUV_LIBRARY} uvgrtp)
 
-install(TARGETS source DESTINATION lib/${PROJECT_NAME})
+rclcpp_components_register_node(source_comp PLUGIN "SourceNode" EXECUTABLE video_source)
+install(TARGETS source_comp DESTINATION lib)
 ament_package()
