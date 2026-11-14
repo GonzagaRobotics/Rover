@@ -13,6 +13,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(cpp_utils REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -29,7 +30,7 @@ endif()
 include_directories(include ${OpenCV_INCLUDE_DIRS})
 
 add_library(source_comp SHARED src/source.cpp)
-target_link_libraries(source_comp rclcpp::rclcpp rclcpp_components::component ${sensor_msgs_TARGETS} ${OpenCV_LIBS})
+target_link_libraries(source_comp rclcpp::rclcpp rclcpp_components::component cpp_utils::cpp_utils ${sensor_msgs_TARGETS} ${OpenCV_LIBS})
 
 rclcpp_components_register_node(source_comp PLUGIN "CameraSource" EXECUTABLE camera_source)
 install(TARGETS source_comp DESTINATION lib)

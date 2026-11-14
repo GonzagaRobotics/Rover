@@ -12,13 +12,14 @@ class CameraSource : public rclcpp::Node
 {
 private:
   // Camera resource path
-  std::string camera_name_;
+  std::string camera_device_;
   int width_;
   int height_;
   int fps_;
   int send_fps_;
+  std::string camera_name_;
 
-  std::atomic<int> capture_state_{0};
+  std::atomic<bool> running_{true};
   cv::VideoCapture cap_;
 
   std::mutex frame_mutex_;
@@ -29,14 +30,6 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
 
   std::thread capture_thread_;
-
-  rcl_interfaces::msg::ParameterDescriptor read_only(std::string description)
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.read_only = true;
-    descriptor.description = description;
-    return descriptor;
-  }
 
   void capture_worker();
 

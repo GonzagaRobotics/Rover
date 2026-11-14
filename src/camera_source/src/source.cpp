@@ -2,17 +2,14 @@
 
 #include <chrono>
 
+#include "cpp_utils/cpp_utils.hpp"
+
 void CameraSource::capture_worker()
 {
-  // Wait for the node to fully initialize
-  while (capture_state_ == 0) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-  }
-
-  while (capture_state_ == 1) {
+  while (running_) {
     if (!cap_.grab()) {
       RCLCPP_ERROR(this->get_logger(), "Failed to grab frame from camera");
-      capture_state_ = 2;
+      running_ = false;
       break;
     }
 
@@ -21,7 +18,7 @@ void CameraSource::capture_worker()
     // Retrieve directly into the message buffer to avoid an extra copy
     auto msg = std::make_unique<sensor_msgs::msg::Image>();
     msg->header.stamp = this->now();
-    msg->header.frame_id = "camera_frame";
+    msg->header.frame_id = camera_name_ + "_frame";
     msg->height = height_;
     msg->width = width_;
     msg->encoding = "bgr8";
@@ -68,23 +65,26 @@ void CameraSource::send_cb()
 }
 
 CameraSource::CameraSource(const rclcpp::NodeOptions & options)
-: Node("camera_source_node", rclcpp::NodeOptions(options).use_intra_process_comms(true)),
-  capture_thread_(&CameraSource::capture_worker, this)
+: Node("camera_source_node", rclcpp::NodeOptions(options).use_intra_process_comms(true))
 {
-  camera_name_ = declare_parameter("camera_name", "/dev/video0", read_only("Camera resource path"));
-  width_ = declare_parameter("width", 1280, read_only("Camera image width"));
-  height_ = declare_parameter("height", 720, read_only("Camera image height"));
-  fps_ = declare_parameter("fps", 30, read_only("Camera image capture FPS"));
-  send_fps_ = declare_parameter("send_fps", 30, read_only("Send every Nth frame to reduce bandwidth"));
+  camera_device_ = declare_init_parameter<std::string>(*this, "camera_device", "/dev/video0", "Camera resource path");
+  bool raw = declare_init_parameter(*this, "raw", false, "Use raw format instead of MJPG");
+  width_ = declare_init_parameter(*this, "width", 1280, "Camera image width");
+  height_ = declare_init_parameter(*this, "height", 720, "Camera image height");
+  fps_ = declare_init_parameter(*this, "fps", 30, "Camera image capture FPS");
+  send_fps_ = declare_init_parameter(*this, "send_fps", fps_, "Camera image send FPS");
 
-  if (!cap_.open(camera_name_, cv::CAP_V4L2)) {
-    capture_state_ = 2;
-    capture_thread_.join();
+  camera_name_ = declare_init_parameter<std::string>(*this, "camera_name", "camera", "Camera name");
 
+  if (!cap_.open(camera_device_, cv::CAP_V4L2)) {
     throw std::runtime_error("Failed to open camera");
   }
 
-  cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+  if (raw) {
+    cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'));
+  } else {
+    cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+  }
   cap_.set(cv::CAP_PROP_FRAME_WIDTH, width_);
   cap_.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
   cap_.set(cv::CAP_PROP_FPS, fps_);
@@ -99,21 +99,28 @@ CameraSource::CameraSource(const rclcpp::NodeOptions & options)
   if (actual_fps != fps_) {
     RCLCPP_WARN(this->get_logger(), "Requested FPS %d, but got %d", fps_, actual_fps);
   }
+  if (send_fps_ > actual_fps) {
+    RCLCPP_WARN(
+      this->get_logger(), "Requested send_fps %d is greater than capture fps %d, using %d", send_fps_, actual_fps,
+      actual_fps);
+    send_fps_ = actual_fps;
+  }
 
-  publisher_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_raw", rclcpp::SensorDataQoS());
+  publisher_ =
+    this->create_publisher<sensor_msgs::msg::Image>("/" + camera_name_ + "/image_raw", rclcpp::SensorDataQoS());
+
   // Only use the timer if our send and capture rates differ
-  if (send_fps_ != fps_) {
+  if (send_fps_ < actual_fps) {
     timer_ =
       this->create_wall_timer(std::chrono::milliseconds(1000 / send_fps_), std::bind(&CameraSource::send_cb, this));
   }
 
-  capture_state_ = 1;
+  capture_thread_ = std::thread(&CameraSource::capture_worker, this);
 }
 
 CameraSource::~CameraSource()
 {
-  capture_state_ = 2;
-
+  running_ = false;
   if (capture_thread_.joinable()) {
     capture_thread_.join();
   }
