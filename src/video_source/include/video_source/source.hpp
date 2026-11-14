@@ -38,7 +38,7 @@ public:
   SourceNode(const rclcpp::NodeOptions & options);
   ~SourceNode();
 
-  void image_cb(const ImageMsg::SharedPtr msg);
+  void image_cb(ImageMsg::ConstSharedPtr msg);
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(SourceNode)

@@ -22,8 +22,8 @@ private:
   cv::VideoCapture cap_;
 
   std::mutex frame_mutex_;
-  cv::Mat frame_;
-  rclcpp::Time frame_time_;
+  // Latest frame, owned until published so ownership can transfer to the middleware
+  sensor_msgs::msg::Image::UniquePtr frame_;
 
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
   rclcpp::TimerBase::SharedPtr timer_;

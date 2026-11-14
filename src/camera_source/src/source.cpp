@@ -17,8 +17,33 @@ void CameraSource::capture_worker()
     }
 
     std::lock_guard<std::mutex> lock(frame_mutex_);
-    cap_.retrieve(frame_);
-    frame_time_ = this->now();
+
+    // Retrieve directly into the message buffer to avoid an extra copy
+    auto msg = std::make_unique<sensor_msgs::msg::Image>();
+    msg->header.stamp = this->now();
+    msg->header.frame_id = "camera_frame";
+    msg->height = height_;
+    msg->width = width_;
+    msg->encoding = "bgr8";
+    msg->is_bigendian = false;
+    msg->step = width_ * 3;
+    msg->data.resize(size_t(msg->step) * msg->height);
+
+    cv::Mat view(height_, width_, CV_8UC3, msg->data.data(), msg->step);
+    cv::Mat target = view;
+    if (!cap_.retrieve(target) || target.empty()) {
+      continue;
+    }
+
+    // OpenCV reallocates if the frame does not match the expected layout
+    if (target.data != msg->data.data()) {
+      msg->height = target.rows;
+      msg->width = target.cols;
+      msg->step = target.cols * 3;
+      msg->data.assign(target.data, target.data + target.total() * target.elemSize());
+    }
+
+    frame_ = std::move(msg);
 
     // If the timer is not set, we are responsible for sending the frame
     if (!timer_) {
@@ -34,26 +59,17 @@ void CameraSource::send_cb()
     std::lock_guard<std::mutex> lock(frame_mutex_);
   }
 
-  if (frame_.empty()) {
+  if (!frame_) {
     return;
   }
 
-  sensor_msgs::msg::Image msg;
-  msg.header.stamp = frame_time_;
-  msg.header.frame_id = "camera_frame";
-  msg.height = frame_.rows;
-  msg.width = frame_.cols;
-  msg.encoding = "bgr8";
-  msg.is_bigendian = false;
-  msg.step = frame_.step;
-  msg.data.assign(frame_.data, frame_.data + frame_.total() * frame_.elemSize());
-
-  frame_ = cv::Mat();
-  publisher_->publish(msg);
+  // Publishing a unique_ptr lets intra-process subscribers share the buffer without copying
+  publisher_->publish(std::move(frame_));
 }
 
 CameraSource::CameraSource(const rclcpp::NodeOptions & options)
-: Node("camera_source_node", options), capture_thread_(&CameraSource::capture_worker, this)
+: Node("camera_source_node", rclcpp::NodeOptions(options).use_intra_process_comms(true)),
+  capture_thread_(&CameraSource::capture_worker, this)
 {
   camera_name_ = declare_parameter("camera_name", "/dev/video0", read_only("Camera resource path"));
   width_ = declare_parameter("width", 1280, read_only("Camera image width"));

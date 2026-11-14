@@ -41,7 +41,8 @@ void SourceNode::init_encoder()
   pic_allocated_ = true;
 }
 
-SourceNode::SourceNode(const rclcpp::NodeOptions & options) : Node("video_source_node", options)
+SourceNode::SourceNode(const rclcpp::NodeOptions & options)
+: Node("video_source_node", rclcpp::NodeOptions(options).use_intra_process_comms(true))
 {
   rcl_interfaces::msg::ParameterDescriptor remote_ip_desc;
   remote_ip_desc.read_only = true;
@@ -92,7 +93,7 @@ SourceNode::~SourceNode()
   }
 }
 
-void SourceNode::image_cb(const ImageMsg::SharedPtr msg)
+void SourceNode::image_cb(ImageMsg::ConstSharedPtr msg)
 {
   if (msg->encoding != "bgr8" || msg->width != (uint32_t)width_ || msg->height != (uint32_t)height_) {
     RCLCPP_WARN(
