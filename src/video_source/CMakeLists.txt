@@ -4,10 +4,6 @@ include(FetchContent)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-
 # uvgRTP
 FetchContent_Declare(
   uvgRTP
@@ -24,6 +20,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(cpp_utils REQUIRED)
 
 # x264 for video encoding
 find_package(PkgConfig REQUIRED)
@@ -46,7 +43,11 @@ endif()
 include_directories(include)
 
 add_library(source_comp SHARED src/source.cpp)
-target_link_libraries(source_comp rclcpp::rclcpp rclcpp_components::component ${sensor_msgs_TARGETS} PkgConfig::x264 ${LIBYUV_LIBRARY} uvgrtp)
+target_link_libraries(source_comp rclcpp::rclcpp rclcpp_components::component cpp_utils::cpp_utils ${sensor_msgs_TARGETS} PkgConfig::x264 ${LIBYUV_LIBRARY} uvgrtp)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(source_comp PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 rclcpp_components_register_node(source_comp PLUGIN "SourceNode" EXECUTABLE video_source)
 install(TARGETS source_comp DESTINATION lib)
