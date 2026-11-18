@@ -5,7 +5,7 @@
 void SourceNode::init_encoder()
 {
   x264_param_t param;
-  if (x264_param_default_preset(&param, "veryfast", "zerolatency") != 0) {
+  if (x264_param_default_preset(&param, "ultrafast", "zerolatency") != 0) {
     throw std::runtime_error("Could not set x264 preset");
   }
 
